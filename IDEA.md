@@ -16,6 +16,40 @@ This shifts the application from being a "bias detector" to becoming an **eviden
 
 ---
 
+# V1 Scope (Actual Build Plan)
+
+Everything below this section (Core Features onward) describes the **full long-term vision**. It is intentionally broad and stays in this doc as the roadmap / "where this is going" story for interviews and the README.
+
+**V1 is a deliberately narrow slice of that vision, scoped to be buildable solo in 2-4 weeks.** The goal of v1 is a working, demoable end-to-end system — not partial coverage of every feature below.
+
+### V1 Constraints (cut from the full vision, on purpose)
+
+* **Sources:** 4 English-language Indian outlets only (e.g. The Hindu, Indian Express, Times of India, NDTV). No Tamil/Hindi/regional sources yet — cross-lingual comparison is a v2+ extension, not v1.
+* **Collection:** RSS feeds only, no Playwright/custom scraping, no paywall handling. Avoids the highest-grind, lowest-signal work.
+* **Event matching:** basic — headline/entity/time-window similarity via embeddings. Doesn't need to be perfect, just good enough to group 4 articles about the same story.
+* **Analysis dimension:** pick ONE to build well instead of five shallow ones —
+  **Quote Distribution + Missing Context Detection.**
+  * Quote distribution: who's quoted (govt / opposition / experts / citizens) and in what proportion, extracted per article.
+  * Missing context: facts/entities present in most articles but absent from a specific one, surfaced as explicit evidence ("mentioned by 3 of 4 sources, missing from X").
+* **Explanation layer:** LLM is used only to generate the final human-readable explanation from structured evidence (counts, missing-entity lists) — not to do the underlying extraction. This preserves the "not just an LLM wrapper" claim, but only for this one dimension, honestly.
+* **Frontend:** simple side-by-side comparison view + evidence panel. No timeline, no heatmap, no chat interface yet.
+
+### Explicitly NOT in v1 (deferred to the full-vision roadmap below)
+
+* Multilingual / cross-lingual comparison
+* Sentiment & emotional framing detection
+* Headline framing analysis
+* Focus/topic classification (government, economy, religion, etc.)
+* Timeline view, bias history, regional coverage, AI chat
+* Vector DB / Qdrant / Milvus infra — a simple Postgres table is enough at this scale
+* Custom crawlers, paywall handling
+
+### Why this scope
+
+A working 4-source, single-dimension demo is something you can actually walk someone through end to end — search a real event, show the comparison, show the evidence behind it. That's a stronger resume/interview artifact than an unfinished pipeline that nominally covers everything below but doesn't run. The full vision stays written down as the roadmap; it's not abandoned, just sequenced.
+
+---
+
 # Core Features
 
 ## 1. Event Aggregation
@@ -504,4 +538,3 @@ This project demonstrates experience in:
 * Full-Stack Development
 
 Rather than being another "AI summarizes text" application, this project focuses on solving a challenging information retrieval and multilingual analysis problem with transparent, evidence-based outputs.
-
