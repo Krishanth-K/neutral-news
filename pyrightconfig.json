@@ -1,0 +1,19 @@
+{
+  "include": [
+    "neutral-news",
+    "."
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    ".git"
+  ],
+  "extraPaths": [
+    "neutral-news"
+  ],
+  "venvPath": "/home/krish/.pyenv/versions",
+  "venv": "news-venv",
+  "pythonVersion": "3.12",
+  "pythonPlatform": "Linux",
+  "typeCheckingMode": "standard"
+}
