@@ -69,6 +69,35 @@ def _format_published_date(entry: feedparser.FeedParserDict) -> str:
     return str(pub_val) if pub_val else ""
 
 
+def fetch_url(url: str, timeout: float = 10.0, headers: dict | None = None) -> str | None:
+    """
+    Fetch raw text content from a URL using httpx.
+
+    Args:
+        url: The web page or feed URL to fetch.
+        timeout: Request timeout in seconds.
+        headers: Optional custom HTTP headers (defaults to DEFAULT_HEADERS).
+
+    Returns:
+        Response text content if successful, or None if the request failed.
+    """
+    if headers is None:
+        headers = DEFAULT_HEADERS
+
+    try:
+        response = httpx.get(
+            url,
+            headers=headers,
+            timeout=timeout,
+            follow_redirects=True,
+        )
+        response.raise_for_status()
+        return response.text
+    except httpx.HTTPError as exc:
+        print(f"[ERROR] Failed to fetch URL {url}: {exc}")
+        return None
+
+
 def poll_rss(url: str, source_name: str | None = None, timeout: float = 10.0) -> list[dict]:
     """
     Fetch and parse news articles from an RSS feed URL.
@@ -85,17 +114,8 @@ def poll_rss(url: str, source_name: str | None = None, timeout: float = 10.0) ->
             - published_at (str): Publication timestamp (ISO 8601 UTC)
             - source_name (str): Name of the newspaper source
     """
-    try:
-        response = httpx.get(
-            url,
-            headers=DEFAULT_HEADERS,
-            timeout=timeout,
-            follow_redirects=True,
-        )
-        response.raise_for_status()
-        raw_xml = response.text
-    except httpx.HTTPError as exc:
-        print(f"[ERROR] Failed to fetch RSS feed from {url}: {exc}")
+    raw_xml = fetch_url(url, timeout=timeout)
+    if not raw_xml:
         return []
 
     feed = feedparser.parse(raw_xml)
