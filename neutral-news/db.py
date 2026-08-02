@@ -25,7 +25,6 @@ CREATE TABLE IF NOT EXISTS articles (
     article_url TEXT UNIQUE NOT NULL,
     headline TEXT NOT NULL,
     published_at TIMESTAMPTZ,
-    rss_summary TEXT,
     
     -- Scraped content
     full_text TEXT,
