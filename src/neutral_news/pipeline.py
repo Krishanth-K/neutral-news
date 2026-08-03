@@ -1,13 +1,22 @@
+"""
+Main pipeline: RSS ingest → full-text scrape → embedding generation.
+"""
+
 import psycopg
-from db import DATABASE_URL, insert_article, get_pending_articles, update_article_text
-from scrape.extract_articles import extract_text_from_url
-from scrape.poll_rss import poll_all_feeds
+
+from neutral_news.config import DATABASE_URL
+from neutral_news.db.articles import (
+    get_pending_articles,
+    insert_article,
+    update_article_text,
+)
+from neutral_news.embed.embedder import embed_pending_articles
+from neutral_news.ingest.rss import poll_all_feeds
+from neutral_news.ingest.scraper import extract_text_from_url
 
 
-def process_pending_articles(conn, batch_size: int = 50):
-    """
-    Fetches and processes all pending articles in batches until none remain.
-    """
+def _scrape_pending_articles(conn, batch_size: int = 50) -> None:
+    """Fetch and scrape full text for all pending articles in batches."""
     total_processed = 0
     while True:
         pending = get_pending_articles(limit=batch_size, conn=conn)
@@ -50,23 +59,27 @@ def process_pending_articles(conn, batch_size: int = 50):
     print(f"[SCRAPE] Finished scraping full text for {total_processed} articles.")
 
 
-def pipeline():
+def run() -> None:
+    """Execute the full pipeline: ingest → scrape → embed."""
     # 1. Poll RSS feeds from all sources
     feed = poll_all_feeds()
     print(f"[PIPELINE] Fetched {len(feed)} items across all RSS feeds.")
 
-    # 2. Store records and process pending articles
     with psycopg.connect(DATABASE_URL) as conn:
+        # 2. Store raw RSS records
         for record in feed:
             insert_article(record, conn=conn)
         conn.commit()
         print("[PIPELINE] Saved all records to the database.")
 
+        # 3. Scrape full text for pending articles
         print("[PIPELINE] Scraping full text for pending articles...")
-        process_pending_articles(conn)
+        _scrape_pending_articles(conn)
+
+        # 4. Generate embeddings for newly completed articles
+        print("[PIPELINE] Generating embeddings for completed articles...")
+        embed_pending_articles(conn)
 
 
 if __name__ == "__main__":
-    pipeline()
-
-     
+    run()

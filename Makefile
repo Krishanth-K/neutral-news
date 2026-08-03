@@ -1,5 +1,7 @@
 .PHONY: help db-up db-down init-db run test-rss view-db
 
+SRC = src
+
 # Default target
 help:
 	@echo "Available commands:"
@@ -7,7 +9,7 @@ help:
 	@echo "  make db-down   - Stop and remove Postgres container"
 	@echo "  make init-db   - Initialize Postgres database extensions & schema"
 	@echo "  make view-db   - View recent articles in the database"
-	@echo "  make run       - Run main application (python3 neutral-news/main.py)"
+	@echo "  make run       - Run the full pipeline (ingest → scrape → embed)"
 	@echo "  make test-rss  - Test RSS polling module"
 
 db-up:
@@ -27,17 +29,16 @@ db-down:
 
 init-db:
 	@echo "Initializing database..."
-	PYTHONPATH=neutral-news python3 neutral-news/db.py
+	PYTHONPATH=$(SRC) python3 -m neutral_news.db.schema
 
 view-db:
 	@echo "Viewing records in database..."
-	PYTHONPATH=neutral-news python3 -c "from db import view_articles; view_articles(10)"
+	PYTHONPATH=$(SRC) python3 -c "from neutral_news.db.articles import view_articles; view_articles(10)"
 
 run:
-	@echo "Running main.py..."
-	PYTHONPATH=neutral-news python3 neutral-news/main.py
+	@echo "Running pipeline..."
+	PYTHONPATH=$(SRC) python3 main.py
 
 test-rss:
 	@echo "Testing RSS feed poller..."
-	PYTHONPATH=neutral-news python3 neutral-news/scrape/poll_rss.py
-
+	PYTHONPATH=$(SRC) python3 -m neutral_news.ingest.rss

@@ -1,6 +1,6 @@
 {
   "include": [
-    "neutral-news",
+    "src",
     "."
   ],
   "exclude": [
@@ -9,7 +9,7 @@
     ".git"
   ],
   "extraPaths": [
-    "neutral-news"
+    "src"
   ],
   "venvPath": "/home/krish/.pyenv/versions",
   "venv": "news-venv",

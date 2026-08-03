@@ -8,12 +8,13 @@
 
 | Component | Status | Notes |
 |---|---|---|
-| RSS Polling | ✅ Done | 4 feeds (The Hindu, Indian Express, ToI, NDTV) via `poll_rss.py` |
+| RSS Polling | ✅ Done | 3 feeds (The Hindu, Indian Express, ToI) via `ingest/rss.py` |
 | DB Schema | ✅ Done | All 6 tables created (`articles`, `article_embeddings`, `quotes`, `events`, `event_articles`, `event_explanations`) |
-| Pipeline Skeleton | ✅ Done | `main.py` polls RSS → inserts into DB |
-| Full-Text Scraper | ❌ Not started | `extract_articles.py` is a throwaway test script |
+| Pipeline Skeleton | ✅ Done | `pipeline.py` orchestrates ingest → scrape → embed |
+| Full-Text Scraper | ✅ Done | `ingest/scraper.py` using trafilatura; wired into pipeline |
 | NLP Extraction | ❌ Not started | — |
-| Embedding + Grouping | ❌ Not started | — |
+| Embedding Generation | 🔨 Scaffolded | `embed/embedder.py` written; needs `sentence-transformers` install & test |
+| Event Grouping | ❌ Not started | — |
 | Analysis | ❌ Not started | — |
 | LLM Explanation | ❌ Not started | — |
 | API / Frontend | ❌ Not started | — |
@@ -24,9 +25,9 @@
 
 > *Corresponds to diagram box 1. Already working.*
 
-- [x] Configure 4 RSS feed URLs
+- [x] Configure RSS feed URLs (`ingest/rss.py`)
 - [x] Fetch + parse RSS XML via `httpx` + `feedparser`
-- [x] Standardize output to `{headline, article_url, published_at, source_name}`
+- [x] Standardise output to `{headline, article_url, published_at, source_name}`
 - [x] Insert into `articles` table with `ON CONFLICT DO NOTHING`
 - [x] Makefile targets: `make run`, `make test-rss`, `make view-db`
 
@@ -43,15 +44,13 @@ Picks up articles with `scrape_status = 'pending'`, fetches the full web page, e
 
 ### Tasks
 
-- [ ] **Choose an article extraction library**
-- [ ] Write `neutral-news/scrape/scrape_worker.py`
-  - [ ] Query `SELECT id, article_url FROM articles WHERE scrape_status = 'pending'`
-  - [ ] For each article: fetch HTML → extract clean body text
-  - [ ] `UPDATE articles SET full_text = ..., scraped_at = NOW(), scrape_status = 'completed'`
-  - [ ] Handle failures: increment `scrape_attempts`, set `scrape_error`, set status to `'failed'` after N retries
-- [ ] Add `make scrape` target to Makefile
-- [ ] Wire into `main.py` pipeline after RSS ingest
-- [ ] Manually verify: run pipeline, check `view-db` shows `completed` articles with full text
+- [x] **Choose an article extraction library** → `trafilatura`
+- [x] Write `src/neutral_news/ingest/scraper.py`
+  - [x] For each article: fetch HTML → extract clean body text via trafilatura
+  - [x] `UPDATE articles SET full_text = ..., scraped_at = NOW(), scrape_status = 'completed'`
+  - [x] Handle failures: set `scrape_error`, set status to `'failed'`
+- [x] Wire into `pipeline.py` after RSS ingest
+- [ ] Manually verify: run pipeline end-to-end, check `view-db` shows `completed` articles with full text
 
 ### Article Extraction Library Decision
 
@@ -80,15 +79,15 @@ For each `completed` article, extract:
 ### Tasks
 
 - [ ] Install spaCy + download English model (`en_core_web_sm` or `en_core_web_trf` for better accuracy)
-- [ ] Write `neutral-news/extract/entities.py`
+- [ ] Write `src/neutral_news/extract/entities.py`
   - [ ] Load article full text → run spaCy NER → return list of `(entity_text, entity_label)`
   - [ ] Store extracted entities (decide: new `entities` table, or JSONB column on `articles`)
-- [ ] Write `neutral-news/extract/quotes.py`
+- [ ] Write `src/neutral_news/extract/quotes.py`
   - [ ] Design LLM prompt: given article text, extract structured JSON of `{quote_text, speaker, role}`
   - [ ] Define abstract LLM interface (so you can swap providers later)
   - [ ] Insert results into `quotes` table
 - [ ] Add `make extract` target to Makefile
-- [ ] Wire into `main.py` pipeline after scraping
+- [ ] Wire into `pipeline.py` after scraping
 - [ ] Test: verify extracted entities and quotes look correct for sample articles
 
 > **Note:** The `quotes` table already exists in the schema (`quote_text`, `speaker`, `role`). An `entities` table does **not** exist yet — you'll need to either add one or use a JSONB column.
@@ -107,11 +106,13 @@ For each `completed` article, extract:
 ### Tasks
 
 - [ ] Install `sentence-transformers`
-- [ ] Write `neutral-news/embed/generate_embeddings.py`
-  - [ ] Load `all-MiniLM-L6-v2` model (384-dim — matches `vector(384)` in DB schema)
-  - [ ] For each `completed` article without an embedding: generate embedding from `headline + " " + full_text`
-  - [ ] Insert into `article_embeddings` table
-- [ ] Write `neutral-news/embed/group_events.py`
+- [x] Write `src/neutral_news/embed/embedder.py`
+  - [x] Load `all-MiniLM-L6-v2` model (384-dim — matches `vector(384)` in DB schema)
+  - [x] For each `completed` article without an embedding: generate embedding
+  - [x] Insert into `article_embeddings` table; skip if already exists
+  - [x] Wire into `pipeline.py` as stage 4
+- [ ] Test: run pipeline end-to-end; verify `article_embeddings` rows are populated
+- [ ] Write `src/neutral_news/embed/group_events.py`
   - [ ] Fetch all embeddings from `article_embeddings`
   - [ ] Cluster using cosine similarity threshold + published_at time window (e.g. 48 hours)
   - [ ] Algorithm options: agglomerative clustering, or simple pairwise threshold with union-find
@@ -119,7 +120,6 @@ For each `completed` article, extract:
   - [ ] Insert `event_articles` mappings
   - [ ] Handle incremental updates: new articles may join existing events
 - [ ] Add `make embed` and `make group` targets to Makefile
-- [ ] Wire into `main.py` pipeline
 - [ ] Test: verify that articles about the same story cluster together across sources
 
 > **Important:** The event grouping doesn't need to be perfect for V1. A simple cosine similarity threshold (e.g. > 0.7) within a 48-hour window is "good enough" to group 4 articles about the same story. Iterate on accuracy later.
@@ -137,19 +137,19 @@ For each event (group of articles), compute:
 
 ### Tasks
 
-- [ ] Write `neutral-news/analyze/quote_distribution.py`
+- [ ] Write `src/neutral_news/analyze/quote_distribution.py`
   - [ ] For a given `event_id`, fetch all `quotes` for each article in the event
   - [ ] Aggregate by `role`: count per article per role
   - [ ] Output: `{article_id: {govt: 3, opposition: 1, expert: 2, citizen: 0}, ...}`
-- [ ] Write `neutral-news/analyze/missing_context.py`
+- [ ] Write `src/neutral_news/analyze/missing_context.py`
   - [ ] For a given `event_id`, fetch entities for each article in the event
   - [ ] Find entities present in ≥ 3 of 4 articles but absent from ≤ 1 article
   - [ ] Output: `[{entity: "Supreme Court", present_in: ["Hindu", "IE", "NDTV"], missing_from: ["ToI"]}, ...]`
-- [ ] Write `neutral-news/analyze/analyze_event.py` (orchestrator)
+- [ ] Write `src/neutral_news/analyze/analyze_event.py` (orchestrator)
   - [ ] Calls both analysis functions for a given event
   - [ ] Returns combined structured evidence
 - [ ] Add `make analyze` target to Makefile
-- [ ] Wire into `main.py` pipeline
+- [ ] Wire into `pipeline.py`
 - [ ] Test: verify analysis output makes intuitive sense for sample events
 
 ---
@@ -163,16 +163,16 @@ Takes the **structured evidence** (quote counts, missing entity lists) and gener
 
 ### Tasks
 
-- [ ] Write `neutral-news/explain/llm_interface.py`
+- [ ] Write `src/neutral_news/explain/llm_interface.py`
   - [ ] Abstract interface: `explain(evidence: dict) -> str`
   - [ ] Implement concrete adapter (Gemini / OpenAI / Ollama — decide later)
   - [ ] Prompt design: given quote distribution counts + missing context list, produce a clear, neutral narrative
-- [ ] Write `neutral-news/explain/explain_event.py`
+- [ ] Write `src/neutral_news/explain/explain_event.py`
   - [ ] For a given `event_id`, fetch analysis results
   - [ ] Call LLM interface to generate explanation
   - [ ] Store result in `event_explanations` table (with `evidence` JSONB column)
 - [ ] Add `make explain` target to Makefile
-- [ ] Wire into `main.py` pipeline
+- [ ] Wire into `pipeline.py`
 - [ ] Test: verify explanations are accurate and backed by evidence
 
 > **Note:** LLM provider decision deferred. Design the interface now so any provider can be swapped in. The prompt is more important than the provider for V1.
@@ -188,7 +188,7 @@ Expose the data via a FastAPI REST API. Build a frontend that shows side-by-side
 
 ### Tasks
 
-- [ ] Write `neutral-news/api/app.py` (FastAPI)
+- [ ] Write `src/neutral_news/api/app.py` (FastAPI)
   - [ ] `GET /events` — list all events with metadata
   - [ ] `GET /events/{event_id}` — event detail: articles, quote distribution, missing context, explanation
   - [ ] `GET /articles/{article_id}` — single article detail

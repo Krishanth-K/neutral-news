@@ -39,12 +39,12 @@ Everything beyond this scope is documented in [`IDEA.md`](IDEA.md) as the long-t
 
 | Phase | Component | Status | Notes |
 |---|---|---|---|
-| 1 | RSS Ingest & Parse | ✅ Done | `poll_rss.py` — The Hindu, Indian Express, ToI |
+| 1 | RSS Ingest & Parse | ✅ Done | `ingest/rss.py` — The Hindu, Indian Express, ToI |
 | 1 | DB Schema | ✅ Done | 6 tables: `articles`, `article_embeddings`, `quotes`, `events`, `event_articles`, `event_explanations` |
-| 1 | Pipeline Skeleton | ✅ Done | `main.py` polls RSS → inserts into DB |
-| 2 | Full-Text Scraper Worker | 🔨 In progress | `scrape_worker.py` — fetches and extracts article body text |
+| 1 | Pipeline Skeleton | ✅ Done | `pipeline.py` polls RSS → inserts into DB |
+| 2 | Full-Text Scraper | ✅ Done | `ingest/scraper.py` — trafilatura; wired into pipeline |
 | 3 | NLP Extraction | 📋 Planned | spaCy NER + LLM quote extraction |
-| 4 | Embedding Generation | 📋 Planned | `all-MiniLM-L6-v2` (384-dim) via `sentence-transformers` |
+| 4 | Embedding Generation | 🔨 In progress | `embed/embedder.py` scaffolded; needs `sentence-transformers` install |
 | 4 | Event Grouping | 📋 Planned | Cosine similarity + time-window clustering |
 | 5 | Analysis | 📋 Planned | Quote distribution + missing context per event |
 | 6 | LLM Explanation | 📋 Planned | LLM narrates structured evidence |
@@ -99,7 +99,7 @@ make view-db     # prints the 10 most recent articles and their scrape status
 ### 5. Test individual modules
 
 ```bash
-make test-rss    # runs poll_rss.py standalone and prints a sample article record
+make test-rss    # runs ingest/rss.py standalone and prints a sample article record
 ```
 
 ---
@@ -126,9 +126,9 @@ make view-db     # inspect recent articles in the database
 | Database | PostgreSQL 16 via Docker (`pgvector/pgvector:pg16`) |
 | Vector storage | pgvector extension — `vector(384)` column on `article_embeddings` |
 | RSS parsing | `feedparser` + `httpx` |
-| Article extraction | `trafilatura` (planned) |
+| Article extraction | `trafilatura` |
 | NLP | `spaCy` — NER; LLM — quote attribution |
-| Embeddings | `sentence-transformers` — `all-MiniLM-L6-v2` |
+| Embeddings | `sentence-transformers` — `all-MiniLM-L6-v2` (384-dim, pgvector) |
 | API | FastAPI (planned) |
 | Containerisation | Docker |
 
@@ -138,13 +138,19 @@ make view-db     # inspect recent articles in the database
 
 ```
 neutral-news/
-├── neutral-news/               # Python source package
-│   ├── main.py                 # Pipeline orchestrator (RSS → DB → scrape)
-│   ├── db.py                   # Schema, DB helpers (insert, update, query)
-│   └── scrape/
-│       ├── poll_rss.py         # RSS fetching and parsing
-│       ├── extract_articles.py # Article body extraction (stub)
-│       └── scrape_worker.py    # Async scraper worker (planned)
+├── main.py                     # Thin entry point — calls pipeline.run()
+├── src/
+│   └── neutral_news/           # Main package
+│       ├── config.py           # DATABASE_URL and environment variables
+│       ├── pipeline.py         # Orchestrator: ingest → scrape → embed
+│       ├── db/
+│       │   ├── schema.py       # SCHEMA_SQL + init_db()
+│       │   └── articles.py     # CRUD: insert, query, update articles
+│       ├── ingest/
+│       │   ├── rss.py          # RSS fetching and parsing
+│       │   └── scraper.py      # Article body extraction (trafilatura)
+│       └── embed/
+│           └── embedder.py     # Embedding generation + pgvector storage
 │
 ├── docs/
 │   ├── data_flow.md            # System data flow documentation

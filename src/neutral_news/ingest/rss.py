@@ -1,8 +1,8 @@
 """
-RSS Feed Polling Module for Media Lens / Neutral News.
+RSS Feed Polling Module for Neutral News.
 
-Fetches and standardizes article metadata (headline, article_url, published_at, source_name)
-from RSS feeds according to the project specifications.
+Fetches and standardises article metadata (headline, article_url, published_at,
+source_name) from configured RSS feeds.
 """
 
 import time
@@ -51,7 +51,7 @@ def _infer_source_name(url: str, feed_title: str | None = None) -> str:
 
 
 def _format_published_date(entry: feedparser.FeedParserDict) -> str:
-    """Format published timestamp into ISO 8601 string in UTC."""
+    """Format a feedparser entry's published timestamp into an ISO 8601 UTC string."""
     pub_tuple = entry.get("published_parsed") or entry.get("updated_parsed")
     if pub_tuple and isinstance(pub_tuple, (time.struct_time, tuple)) and len(pub_tuple) >= 6:
         try:
@@ -68,8 +68,7 @@ def _format_published_date(entry: feedparser.FeedParserDict) -> str:
 
 
 def fetch_url(url: str, timeout: float = 10.0, headers: dict | None = None) -> str | None:
-    """
-    Fetch raw text content from a URL using httpx.
+    """Fetch raw text content from a URL using httpx.
 
     Args:
         url: The web page or feed URL to fetch.
@@ -97,8 +96,7 @@ def fetch_url(url: str, timeout: float = 10.0, headers: dict | None = None) -> s
 
 
 def poll_rss(url: str, source_name: str | None = None, timeout: float = 10.0) -> list[dict]:
-    """
-    Fetch and parse news articles from an RSS feed URL.
+    """Fetch and parse news articles from a single RSS feed URL.
 
     Args:
         url: The RSS feed URL to fetch.
@@ -106,11 +104,7 @@ def poll_rss(url: str, source_name: str | None = None, timeout: float = 10.0) ->
         timeout: Request timeout in seconds.
 
     Returns:
-        List of dictionaries, each containing:
-            - headline (str): Article title
-            - article_url (str): Link to full article
-            - published_at (str): Publication timestamp (ISO 8601 UTC)
-            - source_name (str): Name of the newspaper source
+        List of dicts, each containing headline, article_url, published_at, source_name.
     """
     raw_xml = fetch_url(url, timeout=timeout)
     if not raw_xml:
@@ -130,12 +124,10 @@ def poll_rss(url: str, source_name: str | None = None, timeout: float = 10.0) ->
         if not headline or not article_url:
             continue
 
-        published_at = _format_published_date(entry)
-
         articles.append({
             "headline": headline,
             "article_url": article_url,
-            "published_at": published_at,
+            "published_at": _format_published_date(entry),
             "source_name": resolved_source,
         })
 
@@ -143,12 +135,7 @@ def poll_rss(url: str, source_name: str | None = None, timeout: float = 10.0) ->
 
 
 def poll_all_feeds(timeout: float = 10.0) -> list[dict]:
-    """
-    Poll all configured V1 RSS feeds (The Hindu, Indian Express, Times of India, NDTV).
-
-    Returns:
-        Combined list of article metadata dictionaries across all sources.
-    """
+    """Poll all configured V1 RSS feeds and return a combined list of article metadata."""
     all_articles = []
     for source_name, url in RSS_FEEDS.items():
         articles = poll_rss(url=url, source_name=source_name, timeout=timeout)

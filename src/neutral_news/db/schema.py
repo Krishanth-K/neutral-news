@@ -1,9 +1,14 @@
-import os
-import psycopg
+"""
+Database schema definition and initialisation.
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", "postgresql://postgres:postgres@localhost:5433/neutral_news"
-)
+Manages PostgreSQL extensions, enums, tables, and indexes for neutral_news.
+Run directly (`python -m neutral_news.db.schema`) to initialise the database.
+"""
+
+import psycopg
+from psycopg.conninfo import conninfo_to_dict, make_conninfo
+
+from neutral_news.config import DATABASE_URL
 
 SCHEMA_SQL = """
 -- Enable required extensions
@@ -91,17 +96,16 @@ CREATE TABLE IF NOT EXISTS event_explanations (
 """
 
 
-def init_db(db_url: str = DATABASE_URL):
-    """Initializes PostgreSQL extensions, tables, and indexes, creating the database if needed."""
-    # Parse target database name from URL if possible
-    # Connect to default postgres DB first to create neutral_news DB if it doesn't exist
-    from psycopg.conninfo import conninfo_to_dict, make_conninfo
+def init_db(db_url: str = DATABASE_URL) -> None:
+    """Initialise PostgreSQL extensions, tables, and indexes.
 
+    Connects to the maintenance database first to create the target database
+    if it does not already exist, then applies the full schema.
+    """
     try:
         conn_params = conninfo_to_dict(db_url)
         target_db = conn_params.get("dbname", "neutral_news")
 
-        # Connect to maintenance database 'postgres'
         conn_params["dbname"] = "postgres"
         admin_url = make_conninfo(**conn_params)
 
@@ -117,96 +121,7 @@ def init_db(db_url: str = DATABASE_URL):
     with psycopg.connect(db_url, autocommit=True) as conn:
         with conn.cursor() as cur:
             cur.execute(SCHEMA_SQL)
-            print("PostgreSQL database initialized successfully with all tables and extensions.")
-
-
-def insert_article(article: dict, conn=None, db_url: str = DATABASE_URL):
-    """
-    Inserts a single RSS article record into the articles table.
-    Ignores duplicates based on article_url.
-    """
-    published_at = article.get("published_at") if article.get("published_at") else None
-
-    query = """
-        INSERT INTO articles (source_name, article_url, headline, published_at)
-        VALUES (%s, %s, %s, %s)
-        ON CONFLICT (article_url) DO NOTHING;
-    """
-    params = (
-        article["source_name"],
-        article["article_url"],
-        article["headline"],
-        published_at,
-    )
-
-    if conn:
-        with conn.cursor() as cur:
-            cur.execute(query, params)
-    else:
-        with psycopg.connect(db_url) as conn:
-            with conn.cursor() as cur:
-                cur.execute(query, params)
-
-
-def view_articles(limit: int = 10, db_url: str = DATABASE_URL):
-    """Fetches and prints recent article records from the database."""
-    query = """
-        SELECT source_name, headline, published_at, created_at, scrape_status
-        FROM articles
-        ORDER BY created_at DESC
-        LIMIT %s;
-    """
-    with psycopg.connect(db_url) as conn:
-        with conn.cursor() as cur:
-            cur.execute(query, (limit,))
-            rows = cur.fetchall()
-
-    print(f"\n--- Recent {len(rows)} Articles in Database ---")
-    for i, (source, headline, pub_at, created, status) in enumerate(rows, 1):
-        print(f"{i}. [{source}] [{status}] {headline}")
-        print(f"   Published: {pub_at} | Staged: {created}\n")
-
-
-def get_pending_articles(limit: int = 50, conn=None, db_url: str = DATABASE_URL):
-    """Fetches up to `limit` pending articles from the database."""
-    query = """
-        SELECT id, article_url
-        FROM articles
-        WHERE scrape_status = 'pending'
-        LIMIT %s;
-    """
-    if conn:
-        with conn.cursor() as cur:
-            cur.execute(query, (limit,))
-            return cur.fetchall()
-    else:
-        with psycopg.connect(db_url) as conn:
-            with conn.cursor() as cur:
-                cur.execute(query, (limit,))
-                return cur.fetchall()
-
-
-def update_article_text(article_id, full_text=None, error=None, status='completed', conn=None, db_url: str = DATABASE_URL):
-    """Updates an article with scraped text or error, and updates its status."""
-    query = """
-        UPDATE articles
-        SET full_text = %s,
-            scrape_error = %s,
-            scrape_status = %s,
-            scraped_at = NOW(),
-            scrape_attempts = scrape_attempts + 1,
-            updated_at = NOW()
-        WHERE id = %s;
-    """
-    params = (full_text, error, status, article_id)
-    if conn:
-        with conn.cursor() as cur:
-            cur.execute(query, params)
-    else:
-        with psycopg.connect(db_url) as conn:
-            with conn.cursor() as cur:
-                cur.execute(query, params)
-                conn.commit()
+            print("PostgreSQL database initialised successfully with all tables and extensions.")
 
 
 if __name__ == "__main__":
