@@ -15,13 +15,11 @@ import httpx
 THE_HINDU_RSS_URL = "https://www.thehindu.com/news/national/feeder/default.rss"
 INDIAN_EXPRESS_RSS_URL = "https://indianexpress.com/section/india/feed/"
 TIMES_OF_INDIA_RSS_URL = "https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms"
-NDTV_RSS_URL = "https://feeds.feedburner.com/ndtvnews-india-news"
 
 RSS_FEEDS = {
     "The Hindu": THE_HINDU_RSS_URL,
     "Indian Express": INDIAN_EXPRESS_RSS_URL,
     "Times of India": TIMES_OF_INDIA_RSS_URL,
-    "NDTV": NDTV_RSS_URL,
 }
 
 DEFAULT_HEADERS = {
