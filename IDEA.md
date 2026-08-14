@@ -538,3 +538,15 @@ This project demonstrates experience in:
 * Full-Stack Development
 
 Rather than being another "AI summarizes text" application, this project focuses on solving a challenging information retrieval and multilingual analysis problem with transparent, evidence-based outputs.
+
+
+
+# Decision Log
+
+## Embedding issue
+
+Used "all-MiniLM-L6-v2" for embedding, but its was not "smart" enough.
+Slightly related documents are clustered very close together.
+
+The *small context window* of 256 tokens is the issue.
+MiniLM works on *shared vocabulary*, not semantic meaning
