@@ -103,3 +103,4 @@ def view_articles(limit: int = 10, db_url: str = DATABASE_URL) -> None:
     for i, (source, headline, pub_at, created, status) in enumerate(rows, 1):
         print(f"{i}. [{source}] [{status}] {headline}")
         print(f"   Published: {pub_at} | Staged: {created}\n")
+

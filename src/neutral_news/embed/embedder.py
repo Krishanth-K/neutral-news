@@ -14,6 +14,7 @@ from neutral_news.config import DATABASE_URL
 
 # Matches the vector(384) column in article_embeddings
 _MODEL_NAME = "all-MiniLM-L6-v2"
+# _MODEL_NAME = "nomic-ai/nomic-embed-text-v1.5"
 _model: SentenceTransformer | None = None
 
 
