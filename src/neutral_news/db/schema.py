@@ -52,7 +52,7 @@ CREATE INDEX IF NOT EXISTS idx_articles_source_pub ON articles(source_name, publ
 CREATE TABLE IF NOT EXISTS article_embeddings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
-    embedding vector(384),
+    embedding vector(768),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

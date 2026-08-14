@@ -1,8 +1,8 @@
 """
 Article embedding generation and storage.
 
-Uses sentence-transformers (all-MiniLM-L6-v2, 384-dim) to generate embeddings
-and stores them in the article_embeddings table via pgvector.
+Uses sentence-transformers (nomic-ai/nomic-embed-text-v1.5, 768-dim, 8192-token context)
+to generate embeddings and stores them in the article_embeddings table via pgvector.
 """
 
 from __future__ import annotations
@@ -13,8 +13,9 @@ from sentence_transformers import SentenceTransformer
 
 from neutral_news.config import DATABASE_URL
 
-# Matches the vector(384) column in article_embeddings
-_MODEL_NAME = "all-MiniLM-L6-v2"
+# Matches the vector(768) column in article_embeddings
+_MODEL_NAME = "nomic-ai/nomic-embed-text-v1.5"
+_EMBEDDING_DIM = 768
 _model: SentenceTransformer | None = None
 
 
