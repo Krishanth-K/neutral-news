@@ -137,7 +137,41 @@ def build_plot(df: pd.DataFrame, method: str, out: str) -> None:
         legend=dict(title_text="Outlet", itemsizing="constant"),
     )
     fig.write_html(out)
-    print(f"[VIZ] Saved interactive map → {out}")
+
+    # Splice in a click handler and cursor style before </body>.
+    # (post_script injects inside an existing <script> block and breaks the page.)
+    click_html = """
+<style>.plotly-graph-div { cursor: pointer; }</style>
+<script>
+(function() {
+    function attachClickHandler() {
+        var plots = document.querySelectorAll('.plotly-graph-div');
+        plots.forEach(function(plot) {
+            if (plot._clickHandlerAttached) return;
+            plot._clickHandlerAttached = true;
+            plot.on('plotly_click', function(data) {
+                var pt = data.points[0];
+                // customdata order matches hover_data declaration: [source, date, url, x, y]
+                var url = pt.customdata ? pt.customdata[2] : null;
+                if (url) window.open(url, '_blank');
+            });
+        });
+    }
+    if (document.readyState === 'complete') {
+        setTimeout(attachClickHandler, 500);
+    } else {
+        window.addEventListener('load', function() { setTimeout(attachClickHandler, 500); });
+    }
+})();
+</script>
+"""
+    with open(out, "r", encoding="utf-8") as f:
+        html = f.read()
+    html = html.replace("</body>", click_html + "</body>", 1)
+    with open(out, "w", encoding="utf-8") as f:
+        f.write(html)
+
+    print(f"[VIZ] Saved interactive map → {out}  (click any point to open the article)")
     print(f"[VIZ] Open it in your browser: file://{out}")
 
 
