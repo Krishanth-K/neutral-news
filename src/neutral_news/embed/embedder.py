@@ -8,13 +8,13 @@ and stores them in the article_embeddings table via pgvector.
 from __future__ import annotations
 
 import psycopg
+from pgvector.psycopg import register_vector
 from sentence_transformers import SentenceTransformer
 
 from neutral_news.config import DATABASE_URL
 
 # Matches the vector(384) column in article_embeddings
 _MODEL_NAME = "all-MiniLM-L6-v2"
-# _MODEL_NAME = "nomic-ai/nomic-embed-text-v1.5"
 _model: SentenceTransformer | None = None
 
 
@@ -60,6 +60,7 @@ def embed_article(article_id: str, text: str, conn) -> None:
     vector = model.encode(text).tolist()
 
     with conn.cursor() as cur:
+        register_vector(conn)
         cur.execute(
             """
             INSERT INTO article_embeddings (article_id, embedding)
@@ -85,6 +86,7 @@ def embed_pending_articles(conn, batch_size: int = 50) -> None:
                 print(f"  ✓ Embedded article {article_id}")
             except Exception as e:
                 print(f"  ✗ Failed to embed article {article_id}: {e}")
+                conn.rollback()
             total += 1
 
         conn.commit()
