@@ -24,7 +24,7 @@ def _get_model() -> SentenceTransformer:
     global _model
     if _model is None:
         print(f"[EMBED] Loading model '{_MODEL_NAME}'...")
-        _model = SentenceTransformer(_MODEL_NAME)
+        _model = SentenceTransformer(_MODEL_NAME, trust_remote_code=True)
     return _model
 
 
@@ -58,7 +58,7 @@ def embed_article(article_id: str, text: str, conn) -> None:
     Skips silently if an embedding already exists (ON CONFLICT DO NOTHING).
     """
     model = _get_model()
-    vector = model.encode(text).tolist()
+    vector = model.encode("search_document: " + text).tolist()
 
     with conn.cursor() as cur:
         register_vector(conn)

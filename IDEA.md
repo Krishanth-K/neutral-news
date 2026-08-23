@@ -550,3 +550,6 @@ Slightly related documents are clustered very close together.
 
 The *small context window* of 256 tokens is the issue.
 MiniLM works on *shared vocabulary*, not semantic meaning
+
+"nomic-ai/nomic-embed-text-v1.5" is semantic, and has a larger token window.
+This model requires *task_prefixes* for each usecase. (search_document for documents, search_query for queries etc).
