@@ -4,9 +4,14 @@ Article CRUD operations.
 All database reads and writes for the articles and article_embeddings tables.
 """
 
+import logging
+
 import psycopg
+from psycopg.errors import UniqueViolation
 
 from neutral_news.config import DATABASE_URL
+
+log = logging.getLogger(__name__)
 
 
 def insert_article(article: dict, conn=None, db_url: str = DATABASE_URL) -> None:
@@ -64,7 +69,12 @@ def update_article_text(
     conn=None,
     db_url: str = DATABASE_URL,
 ) -> None:
-    """Update an article with scraped text or an error message, and advance its status."""
+    """Update an article with scraped text or an error message, and advance its status.
+
+    If the scraped full_text is a duplicate of an already-stored article, the
+    update is silently skipped and the article is marked as failed so the
+    pipeline does not re-process it endlessly.
+    """
     query = """
         UPDATE articles
         SET full_text = %s,
@@ -76,14 +86,35 @@ def update_article_text(
         WHERE id = %s;
     """
     params = (full_text, error, status, article_id)
+
+    def _execute(cur):
+        try:
+            cur.execute(query, params)
+        except UniqueViolation:
+            log.warning(
+                "Duplicate full_text detected for article %s — marking as failed.",
+                article_id,
+            )
+            cur.execute(
+                """
+                UPDATE articles
+                SET scrape_status = 'failed',
+                    scrape_error = 'duplicate_full_text',
+                    scrape_attempts = scrape_attempts + 1,
+                    updated_at = NOW()
+                WHERE id = %s;
+                """,
+                (article_id,),
+            )
+
     if conn:
         with conn.cursor() as cur:
-            cur.execute(query, params)
+            _execute(cur)
     else:
         with psycopg.connect(db_url) as conn:
             with conn.cursor() as cur:
-                cur.execute(query, params)
-                conn.commit()
+                _execute(cur)
+            conn.commit()
 
 
 def view_articles(limit: int = 10, db_url: str = DATABASE_URL) -> None:
