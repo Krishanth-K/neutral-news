@@ -1,8 +1,6 @@
-"""
-Main pipeline: RSS ingest → full-text scrape → embedding generation.
-"""
-
+import sys
 import psycopg
+from psycopg import errors
 
 from neutral_news.config import DATABASE_URL
 from neutral_news.db.articles import (
@@ -44,13 +42,16 @@ def _scrape_pending_articles(conn, batch_size: int = 50) -> None:
                     )
                     print(f"  ✗ Failed (no text extracted): {url[:60]}...")
             except Exception as e:
-                update_article_text(
-                    article_id=article_id,
-                    error=str(e),
-                    status="failed",
-                    conn=conn,
-                )
                 print(f"  ✗ Error extracting {url[:60]}: {e}")
+                try:
+                    update_article_text(
+                        article_id=article_id,
+                        error=str(e),
+                        status="failed",
+                        conn=conn,
+                    )
+                except Exception as update_err:
+                    print(f"  ✗ Could not record failure status for {article_id}: {update_err}")
 
             total_processed += 1
 
@@ -65,21 +66,42 @@ def run() -> None:
     feed = poll_all_feeds()
     print(f"[PIPELINE] Fetched {len(feed)} items across all RSS feeds.")
 
-    with psycopg.connect(DATABASE_URL) as conn:
-        # 2. Store raw RSS records
-        for record in feed:
-            insert_article(record, conn=conn)
-        conn.commit()
-        print("[PIPELINE] Saved all records to the database.")
+    try:
+        with psycopg.connect(DATABASE_URL) as conn:
+            # 2. Store raw RSS records
+            for record in feed:
+                insert_article(record, conn=conn)
+            conn.commit()
+            print("[PIPELINE] Saved all records to the database.")
 
-        # 3. Scrape full text for pending articles
-        print("[PIPELINE] Scraping full text for pending articles...")
-        _scrape_pending_articles(conn)
+            # 3. Scrape full text for pending articles
+            print("[PIPELINE] Scraping full text for pending articles...")
+            _scrape_pending_articles(conn)
 
-        # 4. Generate embeddings for newly completed articles
-        print("[PIPELINE] Generating embeddings for completed articles...")
-        embed_pending_articles(conn)
+            # 4. Generate embeddings for newly completed articles
+            print("[PIPELINE] Generating embeddings for completed articles...")
+            embed_pending_articles(conn)
+
+    except errors.LockNotAvailable as exc:
+        print(f"\n[FATAL] Database lock contention: a table or row is locked by another process.")
+        print(f"Details: {exc}")
+        print("Pipeline aborted gracefully. Please wait for the other transaction/migration to finish.")
+        sys.exit(1)
+    except errors.DeadlockDetected as exc:
+        print(f"\n[FATAL] Database deadlock detected: two concurrent transactions conflicted.")
+        print(f"Details: {exc}")
+        print("Pipeline aborted gracefully. Safe to retry.")
+        sys.exit(1)
+    except psycopg.OperationalError as exc:
+        print(f"\n[FATAL] Database connection failed or database is unavailable: {exc}")
+        print("Pipeline aborted gracefully. Please verify that Postgres is running (`make db-up`).")
+        sys.exit(1)
+    except psycopg.Error as exc:
+        print(f"\n[FATAL] Database error ({exc.__class__.__name__}): {exc}")
+        print("Pipeline aborted gracefully.")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
     run()
+

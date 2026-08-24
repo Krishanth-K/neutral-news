@@ -87,9 +87,10 @@ def update_article_text(
     """
     params = (full_text, error, status, article_id)
 
-    def _execute(cur):
+    def _execute(connection, cur):
         try:
-            cur.execute(query, params)
+            with connection.transaction():
+                cur.execute(query, params)
         except UniqueViolation:
             log.warning(
                 "Duplicate full_text detected for article %s — marking as failed.",
@@ -109,12 +110,12 @@ def update_article_text(
 
     if conn:
         with conn.cursor() as cur:
-            _execute(cur)
+            _execute(conn, cur)
     else:
-        with psycopg.connect(db_url) as conn:
-            with conn.cursor() as cur:
-                _execute(cur)
-            conn.commit()
+        with psycopg.connect(db_url) as connection:
+            with connection.cursor() as cur:
+                _execute(connection, cur)
+            connection.commit()
 
 
 def view_articles(limit: int = 10, db_url: str = DATABASE_URL) -> None:
