@@ -553,3 +553,32 @@ MiniLM works on *shared vocabulary*, not semantic meaning
 
 "nomic-ai/nomic-embed-text-v1.5" is semantic, and has a larger token window.
 This model requires *task_prefixes* for each usecase. (search_document for documents, search_query for queries etc).
+
+
+## Event grouping
+
+Using 4 criteria to group events:
+- Embedding score
+- Time-frame similarity
+- Named Entity similarity
+- Source outlet (de-duping)
+
+### Clustering methods considered:
+
+#### Single pass / threshold based:
+
+If the *distance of new datapoint and the centroid of existing cluster* < threshold => add to the cluster ; else start a new cluster
+
+But the order of datapoints matter. In this case, two similar articles coming in different order could be grouped in seperate clusters. => **Order dependency flaw**
+
+#### Graph based
+
+Build a graph of datapoints. Two points are connected if their *similarity < threshold*. Connected points belong to a cluster
+
+This produces **Chaining flaw**.
+A -> B -> C might be connected as (A, B) are similar, and (B, C) are similar. But (A, C) might not be.
+
+Ex:
+  A₁ ──── A₂ ──── A₃
+ (farmers  (farm  (trade
+  protest)  subsidies) war)
