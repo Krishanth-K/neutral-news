@@ -50,7 +50,7 @@ Picks up articles with `scrape_status = 'pending'`, fetches the full web page, e
   - [x] `UPDATE articles SET full_text = ..., scraped_at = NOW(), scrape_status = 'completed'`
   - [x] Handle failures: set `scrape_error`, set status to `'failed'`
 - [x] Wire into `pipeline.py` after RSS ingest
-- [ ] Manually verify: run pipeline end-to-end, check `view-db` shows `completed` articles with full text
+- [x] Manually verify: run pipeline end-to-end, check `view-db` shows `completed` articles with full text
 
 ### Article Extraction Library Decision
 
