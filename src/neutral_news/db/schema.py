@@ -41,6 +41,9 @@ CREATE TABLE IF NOT EXISTS articles (
     scrape_attempts INT NOT NULL DEFAULT 0,
     scrape_error TEXT,
     
+    -- entity extraction
+    entity_extraction_status TEXT,
+    
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -71,7 +74,18 @@ CREATE TABLE IF NOT EXISTS quotes (
 
 CREATE INDEX IF NOT EXISTS idx_quotes_article_id ON quotes(article_id);
 
--- 4. Events Table
+-- 4. Extracted Entities Table
+CREATE TABLE IF NOT EXISTS entities (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+    text TEXT NOT NULL,
+    label VARCHAR(255),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_entities_article_id ON entities(article_id);
+
+-- 5. Events Table
 CREATE TABLE IF NOT EXISTS events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
@@ -79,14 +93,14 @@ CREATE TABLE IF NOT EXISTS events (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 5. Event Articles Mapping Table
+-- 6. Event Articles Mapping Table
 CREATE TABLE IF NOT EXISTS event_articles (
     event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
     PRIMARY KEY (event_id, article_id)
 );
 
--- 6. Event Explanations Table
+-- 7. Event Explanations Table
 CREATE TABLE IF NOT EXISTS event_explanations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,

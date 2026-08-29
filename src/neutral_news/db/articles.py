@@ -41,6 +41,34 @@ def insert_article(article: dict, conn=None, db_url: str = DATABASE_URL) -> None
             with conn.cursor() as cur:
                 cur.execute(query, params)
 
+def insert_entity(
+    article_id: str,
+    entity_text: str,
+    entity_label: str,
+    conn=None,
+    db_url: str = DATABASE_URL,
+) -> None:
+    """Insert a single extracted entity into the entities table."""
+    query = """
+        INSERT INTO entities (article_id, text, label)
+        VALUES (%s, %s, %s);
+    """
+    params = (
+        article_id,
+        entity_text,
+        entity_label,
+    )
+
+    if conn:
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+    else:
+        with psycopg.connect(db_url) as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, params)
+
+
+
 
 def get_pending_articles(limit: int = 50, conn=None, db_url: str = DATABASE_URL) -> list:
     """Fetch up to `limit` pending articles from the database."""
