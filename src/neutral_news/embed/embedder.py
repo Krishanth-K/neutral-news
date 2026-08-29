@@ -72,11 +72,19 @@ def embed_article(article_id: str, text: str, conn) -> None:
         )
 
 
-def embed_pending_articles(conn, batch_size: int = 50) -> None:
-    """Embed all completed articles that are missing embeddings, in batches."""
+def embed_pending_articles(
+    conn, limit: int | None = None, batch_size: int = 50
+) -> None:
+    """Embed completed articles that are missing embeddings, in batches."""
     total = 0
     while True:
-        rows = get_articles_needing_embeddings(conn, limit=batch_size)
+        fetch_limit = (
+            min(batch_size, limit - total) if limit is not None else batch_size
+        )
+        if fetch_limit <= 0:
+            break
+
+        rows = get_articles_needing_embeddings(conn, limit=fetch_limit)
         if not rows:
             break
 
@@ -91,5 +99,7 @@ def embed_pending_articles(conn, batch_size: int = 50) -> None:
             total += 1
 
         conn.commit()
+        if limit is not None and total >= limit:
+            break
 
     print(f"[EMBED] Done. Embedded {total} articles.")
