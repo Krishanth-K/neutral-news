@@ -19,3 +19,6 @@
 
     what about multiple articles on a same event over a week? it could be about a disaster - rescue missons which could take weeks, and the would be similar as well. so we cant just use a hardcoded filter.
 
+---
+
+4. Use a non-linear distance calculation for time distance
