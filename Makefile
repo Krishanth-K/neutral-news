@@ -12,8 +12,9 @@ ifeq ($(filter-out help db-up db-down init-db run test-rss,$(firstword $(MAKECMD
 endif
 
 # Visualisation defaults (override on the command line)
-METHOD ?= umap
-OUT    ?= embeddings_map.html
+METHOD    ?= umap
+OUT       ?= embeddings_map.html
+THRESHOLD ?= 0.40
 
 # Default target
 help:
@@ -26,9 +27,11 @@ help:
 	@echo "  make embed [N]      - Run embedding step (optional limit: all or N articles)"
 	@echo "  make extract [N]    - Run entity extraction (optional limit: all or N articles)"
 	@echo "  make test-rss       - Test RSS polling module"
-	@echo "  make viz [N]        - Visualise embeddings in 2D (opens embeddings_map.html, default limit: 500)"
+	@echo "  make viz [N]        - Visualise embeddings in 2D with cluster boundaries (default limit: 500)"
 	@echo "    METHOD=umap|tsne    Reduction method for viz (default: umap)"
+	@echo "    THRESHOLD=0.40      HAC distance threshold (default: 0.40)"
 	@echo "    OUT=file.html       Output filename for viz   (default: embeddings_map.html)"
+	@echo "  make viz-dash [N]   - Interactive live Dash app for threshold tuning"
 
 db-up:
 	@echo "Starting PostgreSQL with pgvector on port 5433..."
@@ -70,8 +73,16 @@ test-rss:
 	PYTHONPATH=$(SRC) python3 -m neutral_news.ingest.rss
 
 viz:
-	@echo "Visualising embeddings (method=$(METHOD), limit=$(or $(LIMIT),500), out=$(OUT))..."
+	@echo "Visualising embeddings (method=$(METHOD), limit=$(or $(LIMIT),500), threshold=$(THRESHOLD), out=$(OUT))..."
 	PYTHONPATH=$(SRC) python3 scripts/viz_embeddings.py \
 		--limit $(or $(LIMIT),500) \
 		--method $(METHOD) \
+		--threshold $(THRESHOLD) \
 		--out $(OUT)
+
+viz-dash:
+	@echo "Starting interactive viz dash server (method=$(METHOD), limit=$(or $(LIMIT),500))..."
+	PYTHONPATH=$(SRC) python3 scripts/viz_embeddings.py \
+		--limit $(or $(LIMIT),500) \
+		--method $(METHOD) \
+		--dash
