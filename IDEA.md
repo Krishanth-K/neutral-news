@@ -24,9 +24,9 @@ Everything below this section (Core Features onward) describes the **full long-t
 
 ### V1 Constraints (cut from the full vision, on purpose)
 
-* **Sources:** 4 English-language Indian outlets only (e.g. The Hindu, Indian Express, Times of India). No Tamil/Hindi/regional sources yet — cross-lingual comparison is a v2+ extension, not v1.
+* **Sources:** 3–4 English-language Indian outlets (The Hindu, Indian Express, Times of India; NDTV planned). No Tamil/Hindi/regional sources yet — cross-lingual comparison is a v2+ extension, not v1.
 * **Collection:** RSS feeds only, no Playwright/custom scraping, no paywall handling. Avoids the highest-grind, lowest-signal work.
-* **Event matching:** basic — headline/entity/time-window similarity via embeddings. Doesn't need to be perfect, just good enough to group 4 articles about the same story.
+* **Event matching:** Composite distance metric (embedding cosine similarity + publication time window + spaCy named entity Jaccard overlap) clustered via Hierarchical Agglomerative Clustering (HAC with complete linkage).
 * **Analysis dimension:** pick ONE to build well instead of five shallow ones —
   **Quote Distribution + Missing Context Detection.**
   * Quote distribution: who's quoted (govt / opposition / experts / citizens) and in what proportion, extracted per article.
@@ -555,3 +555,6 @@ MiniLM works on *shared vocabulary*, not semantic meaning
 This model requires *task_prefixes* for each usecase. (search_document for documents, search_query for queries etc).
 
 
+## Clustering method
+
+read  [./docs/clustering.md](notes)  for more info on choosing this method.
