@@ -1,3 +1,4 @@
 **/__pycache__/**
 embeddings_map.html
 *.html
+.env
