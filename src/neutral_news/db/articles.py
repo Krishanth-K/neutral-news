@@ -68,6 +68,49 @@ def insert_entity(
                 cur.execute(query, params)
 
 
+def insert_quote(
+    article_id: str,
+    quote_text: str,
+    speaker: str | None,
+    role: str | None,
+    conn=None,
+    db_url: str = DATABASE_URL,
+) -> None:
+    """Insert a single extracted quote into the quotes table."""
+    query = """
+        INSERT INTO quotes (article_id, quote_text, speaker, role)
+        VALUES (%s, %s, %s, %s);
+    """
+    params = (article_id, quote_text, speaker, role)
+
+    if conn:
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+    else:
+        with psycopg.connect(db_url) as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, params)
+
+
+def get_articles_needing_quote_extraction(
+    conn, limit: int = 50
+) -> list[tuple[str, str]]:
+    """Return completed articles pending quote extraction."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT a.id, a.full_text
+            FROM articles a
+            WHERE a.scrape_status = 'completed'
+              AND a.full_text IS NOT NULL
+              AND a.quote_extraction_status IS NULL
+            LIMIT %s;
+            """,
+            (limit,),
+        )
+        return cur.fetchall()
+
+
 
 
 def get_pending_articles(limit: int = 50, conn=None, db_url: str = DATABASE_URL) -> list:
