@@ -208,14 +208,19 @@ def build_distance_matrix(
             time_dist[j, i] = d
 
     # --- Entity distance (pairwise) ---
+    with conn.cursor() as cur:
+        cur.execute("SELECT article_id, text, label FROM entities;")
+        all_entities = cur.fetchall()
+
+    entities_by_article: dict[str, set] = {}
+    for aid, text, label in all_entities:
+        entities_by_article.setdefault(str(aid), set()).add((text, label))
+
     entity_dist = np.zeros((n, n), dtype=np.float32)
     for i in range(n):
+        entity_a = entities_by_article.get(article_ids[i], set())
         for j in range(i + 1, n):
-            id_a, id_b = article_ids[i], article_ids[j]
-
-            entity_a = set(_get_entities_with_article_id(id_a, conn))
-            entity_b = set(_get_entities_with_article_id(id_b, conn))
-
+            entity_b = entities_by_article.get(article_ids[j], set())
             d = calculate_entity_dist(entity_a, entity_b)
             entity_dist[i, j] = d
             entity_dist[j, i] = d
