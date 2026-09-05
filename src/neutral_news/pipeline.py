@@ -9,6 +9,7 @@ from neutral_news.db.articles import (
     update_article_text,
 )
 from neutral_news.embed.embedder import embed_pending_articles
+from neutral_news.extract.quotes import extract_quotes_pipeline
 from neutral_news.ingest.rss import poll_all_feeds
 from neutral_news.ingest.scraper import extract_text_from_url
 
@@ -82,6 +83,10 @@ def run() -> None:
             print("[PIPELINE] Generating embeddings for completed articles...")
             embed_pending_articles(conn)
 
+            # 5. Extract quotes (via LLM) for completed articles
+            print("[PIPELINE] Extracting quotes for completed articles...")
+            extract_quotes_pipeline(conn)
+
     except errors.LockNotAvailable as exc:
         print(f"\n[FATAL] Database lock contention: a table or row is locked by another process.")
         print(f"Details: {exc}")
@@ -104,4 +109,3 @@ def run() -> None:
 
 if __name__ == "__main__":
     run()
-

@@ -1,4 +1,4 @@
-.PHONY: help db-up db-down init-db run embed extract test-rss view-db viz
+.PHONY: help db-up db-down init-db run embed extract extract-quotes test-rss view-db viz
 
 SRC = src
 
@@ -26,6 +26,7 @@ help:
 	@echo "  make run            - Run the full pipeline (ingest → scrape → embed)"
 	@echo "  make embed [N]      - Run embedding step (optional limit: all or N articles)"
 	@echo "  make extract [N]    - Run entity extraction (optional limit: all or N articles)"
+	@echo "  make extract-quotes [N] - Run LLM quote extraction (optional limit: all or N articles)"
 	@echo "  make test-rss       - Test RSS polling module"
 	@echo "  make viz [N]        - Visualise embeddings in 2D with cluster boundaries (default limit: 500)"
 	@echo "    METHOD=umap|tsne    Reduction method for viz (default: umap)"
@@ -67,6 +68,10 @@ embed:
 extract:
 	@echo "Running entity extraction step$(if $(LIMIT), (limit=$(LIMIT)),)..."
 	PYTHONPATH=$(SRC) python3 -c "import psycopg; from neutral_news.config import DATABASE_URL; from neutral_news.extract.entities import extract_named_entities; conn = psycopg.connect(DATABASE_URL); extract_named_entities(conn, limit=$(if $(LIMIT),$(LIMIT),None)); conn.commit(); conn.close()"
+
+extract-quotes:
+	@echo "Running quote extraction step$(if $(LIMIT), (limit=$(LIMIT)),)..."
+	PYTHONPATH=$(SRC) python3 -c "import psycopg; from neutral_news.config import DATABASE_URL; from neutral_news.extract.quotes import extract_quotes_pipeline; conn = psycopg.connect(DATABASE_URL); extract_quotes_pipeline(conn, limit=$(if $(LIMIT),$(LIMIT),None)); conn.commit(); conn.close()"
 
 test-rss:
 	@echo "Testing RSS feed poller..."
