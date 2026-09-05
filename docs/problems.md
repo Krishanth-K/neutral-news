@@ -22,3 +22,15 @@
 ---
 
 4. Use a non-linear distance calculation for time distance
+
+---
+
+5. Some articles in IndianExpress are paywalled. Current system only scrapes the free part. Leads to **partial and incorrect comparison**
+
+---
+
+6. Entity normalisation is pending. PM and modi mean the same thing
+
+---
+
+7. Parallelise the main pipeline
