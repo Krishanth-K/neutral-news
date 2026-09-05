@@ -85,7 +85,7 @@ For each `completed` article, extract:
   - [x] Store extracted entities in dedicated `entities` table (`article_id`, `text`, `label`)
   - [x] Manage `entity_extraction_status` on `articles`
 - [x] Add `make extract [N]` target to Makefile
-- [ ] Wire entity extraction into `pipeline.py` after scraping
+- [x] Wire entity extraction into `pipeline.py` after scraping
 - [ ] Write `src/neutral_news/extract/quotes.py`
   - [ ] Design LLM prompt: given article text, extract structured JSON of `{quote_text, speaker, role}`
   - [ ] Define abstract LLM interface (so you can swap providers later)
@@ -127,11 +127,11 @@ For each `completed` article, extract:
 - [x] Build 2D embedding space visualization & tuning tools
   - [x] UMAP / t-SNE reduction with cluster boundary polygons (`scripts/viz_embeddings.py`, `make viz`)
   - [x] Interactive Dash app with live threshold slider (`make viz-dash`)
-- [ ] Write event persistence logic (`src/neutral_news/embed/group_events.py` or `persist_events()`)
-  - [ ] Create `events` rows with generated titles (e.g. from cluster medoid headline)
-  - [ ] Insert `event_articles` mappings
+- [x] Write event persistence logic (`src/neutral_news/embed/group_events.py` or `persist_events()`)
+  - [x] Create `events` rows with generated titles (e.g. from cluster medoid headline)
+  - [x] Insert `event_articles` mappings
   - [ ] Handle incremental updates: new articles joining existing events
-- [ ] Add `make group` target to Makefile and wire into `pipeline.py`
+- [x] Add `make group` target to Makefile and wire into `pipeline.py`
 - [ ] Address edge cases in distance metric (non-linear time scaling, dynamic windows per `docs/problems.md`)
 - [ ] Test: verify that articles about the same story cluster together across sources
 

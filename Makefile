@@ -1,4 +1,4 @@
-.PHONY: help db-up db-down init-db run embed extract extract-quotes test-rss view-db viz
+.PHONY: help db-up db-down init-db run embed extract extract-quotes group test-rss view-db viz
 
 SRC = src
 
@@ -23,10 +23,11 @@ help:
 	@echo "  make db-down        - Stop and remove Postgres container"
 	@echo "  make init-db        - Initialize Postgres database extensions & schema"
 	@echo "  make view-db [N]    - View recent articles in the database (default: 10)"
-	@echo "  make run            - Run the full pipeline (ingest → scrape → embed)"
+	@echo "  make run            - Run the full pipeline (ingest → scrape → embed → group)"
 	@echo "  make embed [N]      - Run embedding step (optional limit: all or N articles)"
 	@echo "  make extract [N]    - Run entity extraction (optional limit: all or N articles)"
 	@echo "  make extract-quotes [N] - Run LLM quote extraction (optional limit: all or N articles)"
+	@echo "  make group          - Run HAC event grouping and persistence"
 	@echo "  make test-rss       - Test RSS polling module"
 	@echo "  make viz [N]        - Visualise embeddings in 2D with cluster boundaries (default limit: 500)"
 	@echo "    METHOD=umap|tsne    Reduction method for viz (default: umap)"
@@ -72,6 +73,10 @@ extract:
 extract-quotes:
 	@echo "Running quote extraction step$(if $(LIMIT), (limit=$(LIMIT)),)..."
 	PYTHONPATH=$(SRC) python3 -c "import psycopg; from neutral_news.config import DATABASE_URL; from neutral_news.extract.quotes import extract_quotes_pipeline; conn = psycopg.connect(DATABASE_URL); extract_quotes_pipeline(conn, limit=$(if $(LIMIT),$(LIMIT),None)); conn.commit(); conn.close()"
+
+group:
+	@echo "Running event grouping and persistence (threshold=$(THRESHOLD))..."
+	PYTHONPATH=$(SRC) python3 -m neutral_news.embed.group_events --threshold $(THRESHOLD)
 
 test-rss:
 	@echo "Testing RSS feed poller..."
