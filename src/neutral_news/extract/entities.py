@@ -6,9 +6,7 @@ and stores them in the entities table.
 """
 
 from __future__ import annotations
-
 import spacy
-
 from neutral_news.db.articles import insert_entity
 
 # Focus only on entity types relevant for news comparison & clustering
