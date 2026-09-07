@@ -2,11 +2,14 @@ import sys
 import psycopg
 from psycopg import errors
 
+from neutral_news.analyse import analyse_event
 from neutral_news.config import DATABASE_URL
 from neutral_news.db.articles import (
+    get_all_events,
     get_pending_articles,
     insert_article,
     update_article_text,
+    upsert_event_analysis,
 )
 from neutral_news.embed.embedder import embed_pending_articles
 from neutral_news.embed.group_events import group_and_persist_events
@@ -96,6 +99,21 @@ def run() -> None:
             # 7. Group articles into events (HAC clustering) and persist
             print("[PIPELINE] Grouping articles into events...")
             group_and_persist_events(conn)
+
+            # 8. Run analysis on grouped events (quote distribution & missing context)
+            print("[PIPELINE] Analysing events and persisting results...")
+            events = get_all_events(conn=conn)
+            for event in events:
+                event_id = event["id"]
+                analysis = analyse_event(event_id, conn=conn)
+                upsert_event_analysis(
+                    event_id=event_id,
+                    quote_distribution=analysis["quote_distribution"],
+                    missing_context=analysis["missing_context"],
+                    conn=conn,
+                )
+            conn.commit()
+            print(f"[PIPELINE] Analysed and persisted results for {len(events)} events.")
 
     except errors.LockNotAvailable as exc:
         print(f"\n[FATAL] Database lock contention: a table or row is locked by another process.")
