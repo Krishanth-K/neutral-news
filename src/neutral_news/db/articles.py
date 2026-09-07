@@ -4,6 +4,7 @@ Article CRUD operations.
 All database reads and writes for the articles and article_embeddings tables.
 """
 
+import json
 import logging
 
 import psycopg
@@ -415,4 +416,206 @@ def view_articles(limit: int = 10, db_url: str = DATABASE_URL) -> None:
     for i, (source, headline, pub_at, created, status) in enumerate(rows, 1):
         print(f"{i}. [{source}] [{status}] {headline}")
         print(f"   Published: {pub_at} | Staged: {created}\n")
+
+
+
+def retrieve_entities_by_article_id(
+    article_id: str | list[str],
+    conn=None,
+    db_url: str = DATABASE_URL,
+) -> list[dict]:
+    def _execute(connection) -> list[dict]:
+        with connection.cursor() as cur:
+            if isinstance(article_id, list):
+                if not article_id:
+                    return []
+                cur.execute(
+                    "SELECT text, label FROM entities WHERE article_id = ANY(%s) ORDER BY text ASC;",
+                    (article_id,),
+                )
+            else:
+                cur.execute(
+                    "SELECT text, label FROM entities WHERE article_id = %s ORDER BY text ASC;",
+                    (article_id,),
+                )
+            rows = cur.fetchall()
+            return [{"text": row[0], "label": row[1]} for row in rows]
+
+    if conn:
+        return _execute(conn)
+    with psycopg.connect(db_url) as connection:
+        return _execute(connection)
+
+
+def retrieve_event_articles_id_by_source(
+    event_id: str,
+    source_name: str,
+    conn=None,
+    db_url: str = DATABASE_URL,
+) -> list[str]:
+    """Retrieve all article_ids from the source, belonging to the same event, with the event_id
+
+    Returns a list of article_ids: [id, id, ...]
+    """
+    query = """
+        SELECT ea.article_id
+        FROM event_articles ea
+        JOIN articles a ON ea.article_id = a.id
+        WHERE ea.event_id = %s AND a.source_name = %s
+    """
+
+    def _execute(connection) -> list[str]:
+        with connection.cursor() as cur:
+            cur.execute(query, (event_id, source_name))
+            rows = cur.fetchall()
+            return [str(row[0]) for row in rows]
+
+    if conn:
+        return _execute(conn)
+    with psycopg.connect(db_url) as connection:
+        return _execute(connection)
+
+
+def retrieve_quotes_for_event(
+    event_id: str,
+    conn=None,
+    db_url: str = DATABASE_URL,
+) -> list[dict]:
+    """Retrieve all quotes from articles belonging to a given event_id."""
+    query = """
+        SELECT 
+            a.id AS article_id,
+            a.source_name,
+            a.headline,
+            q.id AS quote_id,
+            q.quote_text,
+            q.speaker,
+            q.role
+        FROM event_articles ea
+        JOIN articles a ON ea.article_id = a.id
+        JOIN quotes q ON q.article_id = a.id
+        WHERE ea.event_id = %s
+        ORDER BY a.source_name, q.created_at ASC;
+    """
+
+    def _execute(connection) -> list[dict]:
+        with connection.cursor() as cur:
+            cur.execute(query, (event_id,))
+            rows = cur.fetchall()
+            return [
+                {
+                    "article_id": str(r[0]),
+                    "source_name": r[1],
+                    "headline": r[2],
+                    "quote_id": str(r[3]),
+                    "quote_text": r[4],
+                    "speaker": r[5],
+                    "role": r[6] or "other",
+                }
+                for r in rows
+            ]
+
+    if conn:
+        return _execute(conn)
+    with psycopg.connect(db_url) as connection:
+        return _execute(connection)
+
+
+def get_all_events(conn=None, db_url: str = DATABASE_URL) -> list[dict]:
+    """Fetch all events with their ID, title, and count of associated articles."""
+    query = """
+        SELECT e.id, e.title, COUNT(ea.article_id) AS article_count, e.created_at
+        FROM events e
+        LEFT JOIN event_articles ea ON ea.event_id = e.id
+        GROUP BY e.id, e.title, e.created_at
+        ORDER BY e.created_at DESC;
+    """
+
+    def _execute(connection) -> list[dict]:
+        with connection.cursor() as cur:
+            cur.execute(query)
+            rows = cur.fetchall()
+            return [
+                {
+                    "id": str(r[0]),
+                    "title": r[1],
+                    "article_count": r[2],
+                    "created_at": r[3],
+                }
+                for r in rows
+            ]
+
+    if conn:
+        return _execute(conn)
+    with psycopg.connect(db_url) as connection:
+        return _execute(connection)
+
+
+def upsert_event_analysis(
+    event_id: str,
+    quote_distribution: dict,
+    missing_context: dict,
+    conn=None,
+    db_url: str = DATABASE_URL,
+) -> None:
+    """Insert or update quote distribution and missing context analysis for an event."""
+    query = """
+        INSERT INTO event_analysis (event_id, quote_distribution, missing_context, updated_at)
+        VALUES (%s, %s::jsonb, %s::jsonb, NOW())
+        ON CONFLICT (event_id) DO UPDATE SET
+            quote_distribution = EXCLUDED.quote_distribution,
+            missing_context = EXCLUDED.missing_context,
+            updated_at = NOW();
+    """
+    params = (
+        event_id,
+        json.dumps(quote_distribution),
+        json.dumps(missing_context),
+    )
+
+    def _execute(connection):
+        with connection.cursor() as cur:
+            cur.execute(query, params)
+
+    if conn:
+        _execute(conn)
+    else:
+        with psycopg.connect(db_url) as connection:
+            _execute(connection)
+            connection.commit()
+
+
+def get_event_analysis(
+    event_id: str,
+    conn=None,
+    db_url: str = DATABASE_URL,
+) -> dict | None:
+    """Fetch stored analysis (quote distribution and missing context) for an event."""
+    query = """
+        SELECT event_id, quote_distribution, missing_context, created_at, updated_at
+        FROM event_analysis
+        WHERE event_id = %s;
+    """
+
+    def _execute(connection):
+        with connection.cursor() as cur:
+            cur.execute(query, (event_id,))
+            row = cur.fetchone()
+            if not row:
+                return None
+            return {
+                "event_id": str(row[0]),
+                "quote_distribution": row[1],
+                "missing_context": row[2],
+                "created_at": row[3],
+                "updated_at": row[4],
+            }
+
+    if conn:
+        return _execute(conn)
+    with psycopg.connect(db_url) as connection:
+        return _execute(connection)
+
+
+
 

@@ -115,6 +115,18 @@ CREATE TABLE IF NOT EXISTS event_explanations (
     evidence JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- 8. Event Analysis Table (Quote distribution and missing context)
+CREATE TABLE IF NOT EXISTS event_analysis (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id UUID UNIQUE NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    quote_distribution JSONB NOT NULL DEFAULT '{}'::jsonb,
+    missing_context JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_event_analysis_event_id ON event_analysis(event_id);
 """
 
 
