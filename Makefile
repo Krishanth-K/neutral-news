@@ -1,4 +1,4 @@
-.PHONY: help db-up db-down init-db run embed extract extract-quotes group test-rss view-db viz test analyse test-analysis
+.PHONY: help db-up db-down init-db run embed extract extract-quotes group test-rss view-db viz test analyse test-analysis serve ui
 
 SRC = src
 
@@ -36,6 +36,8 @@ help:
 	@echo "    THRESHOLD=0.40      HAC distance threshold (default: 0.40)"
 	@echo "    OUT=file.html       Output filename for viz   (default: embeddings_map.html)"
 	@echo "  make viz-dash [N]   - Interactive live Dash app for threshold tuning"
+	@echo "  make serve          - Start Media Lens web UI server on http://localhost:8000"
+	@echo "  make ui             - Alias for make serve"
 
 db-up:
 	@echo "Starting PostgreSQL with pgvector on port 5433..."
@@ -108,4 +110,10 @@ viz-dash:
 		--limit $(or $(LIMIT),500) \
 		--method $(METHOD) \
 		--dash
+
+serve:
+	@echo "Starting Media Lens web UI server on http://localhost:8000..."
+	PYTHONPATH=$(SRC) uvicorn neutral_news.web.app:app --host 0.0.0.0 --port 8000 --reload
+
+ui: serve
 
