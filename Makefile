@@ -1,4 +1,4 @@
-.PHONY: help db-up db-down init-db run embed extract extract-quotes group test-rss view-db viz
+.PHONY: help db-up db-down init-db run embed extract extract-quotes group test-rss view-db viz test analyse test-analysis
 
 SRC = src
 
@@ -28,6 +28,8 @@ help:
 	@echo "  make extract [N]    - Run entity extraction (optional limit: all or N articles)"
 	@echo "  make extract-quotes [N] - Run LLM quote extraction (optional limit: all or N articles)"
 	@echo "  make group          - Run HAC event grouping and persistence"
+	@echo "  make analyse [N]    - Run quote distribution and missing context analysis"
+	@echo "  make test           - Run automated unit and integration tests"
 	@echo "  make test-rss       - Test RSS polling module"
 	@echo "  make viz [N]        - Visualise embeddings in 2D with cluster boundaries (default limit: 500)"
 	@echo "    METHOD=umap|tsne    Reduction method for viz (default: umap)"
@@ -78,6 +80,16 @@ group:
 	@echo "Running event grouping and persistence (threshold=$(THRESHOLD))..."
 	PYTHONPATH=$(SRC) python3 -m neutral_news.embed.group_events --threshold $(THRESHOLD)
 
+analyse:
+	@echo "Running quote distribution and missing context analysis..."
+	PYTHONPATH=$(SRC) python3 scripts/test_analysis.py $(if $(LIMIT),--limit $(LIMIT),)
+
+test:
+	@echo "Running automated unit and integration tests..."
+	PYTHONPATH=$(SRC) python3 -m unittest discover -s tests
+
+test-analysis: analyse
+
 test-rss:
 	@echo "Testing RSS feed poller..."
 	PYTHONPATH=$(SRC) python3 -m neutral_news.ingest.rss
@@ -96,3 +108,4 @@ viz-dash:
 		--limit $(or $(LIMIT),500) \
 		--method $(METHOD) \
 		--dash
+

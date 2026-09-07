@@ -150,20 +150,19 @@ For each event (group of articles), compute:
 
 ### Tasks
 
-- [ ] Write `src/neutral_news/analyze/quote_distribution.py`
-  - [ ] For a given `event_id`, fetch all `quotes` for each article in the event
-  - [ ] Aggregate by `role`: count per article per role
-  - [ ] Output: `{article_id: {govt: 3, opposition: 1, expert: 2, citizen: 0}, ...}`
-- [ ] Write `src/neutral_news/analyze/missing_context.py`
-  - [ ] For a given `event_id`, fetch entities for each article in the event
-  - [ ] Find entities present in ≥ 3 of 4 articles but absent from ≤ 1 article
-  - [ ] Output: `[{entity: "Supreme Court", present_in: ["Hindu", "IE", "NDTV"], missing_from: ["ToI"]}, ...]`
-- [ ] Write `src/neutral_news/analyze/analyze_event.py` (orchestrator)
-  - [ ] Calls both analysis functions for a given event
-  - [ ] Returns combined structured evidence
-- [ ] Add `make analyze` target to Makefile
-- [ ] Wire into `pipeline.py`
-- [ ] Test: verify analysis output makes intuitive sense for sample events
+- [x] Write quote distribution analysis in `src/neutral_news/analyse/analysis.py`
+  - [x] For a given `event_id`, fetch all `quotes` for each article in the event
+  - [x] Aggregate by `role`: count per source/article per role
+  - [x] Output: `{event_id, sources_analyzed, by_source: {total_quotes, counts, proportions, dominant_role, omitted_roles, quotes}}`
+- [x] Write missing context analysis in `src/neutral_news/analyse/analysis.py`
+  - [x] For a given `event_id`, fetch entities for each article/source in the event
+  - [x] Universal entity set union and per-source set difference calculation
+  - [x] Output: `{event_id, sources_analyzed, universal_entity_count, missing_by_source: {present_count, missing_count, missing_entities, present_entities}}`
+- [x] Write combined orchestrator `analyse_event()` in `src/neutral_news/analyse/analysis.py`
+- [x] Add `make analyse` target to Makefile
+- [ ] Wire analysis into `pipeline.py` / Phase 6 (LLM explanation layer)
+- [x] Test: `scripts/test_analysis.py` for verifying structured analysis evidence
+
 
 ---
 
