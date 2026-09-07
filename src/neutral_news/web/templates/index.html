@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Media Lens — Explainable News Comparison Platform</title>
+  
+  <!-- Typography from Google Fonts: Instrument Serif + Inter + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- Masthead Header -->
+  <header class="masthead">
+    <div class="container masthead-inner">
+      <div class="brand">
+        <a href="#feed" class="brand-link">
+          <span class="brand-name">Media Lens</span>
+          <span class="brand-tag">Evidence Explorer</span>
+        </a>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="nav-tabs">
+        <a href="#feed" class="nav-tab active" id="tab-feed">
+          <i data-lucide="newspaper"></i>
+          <span>News Feed</span>
+        </a>
+        <a href="#debug" class="nav-tab" id="tab-debug">
+          <i data-lucide="terminal"></i>
+          <span>Pipeline & Debug</span>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="container main-content">
+
+    <!-- ================================================================= -->
+    <!-- VIEW 1: News Feed (Main Page) -->
+    <!-- ================================================================= -->
+    <section id="view-feed" class="app-view active">
+      
+      <!-- Subheader & Filters -->
+      <div class="feed-header">
+        <div class="feed-title-block">
+          <h1 class="page-title">Current Events</h1>
+          <p class="page-desc">Grouped coverage of the same stories across Indian newspapers. Select an event to inspect the evidence.</p>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="search-bar">
+          <i data-lucide="search" class="search-icon"></i>
+          <input type="text" id="feed-search-input" placeholder="Search headlines, events, topics..." autocomplete="off">
+          <button id="feed-search-clear" class="btn-clear hidden" title="Clear search">&times;</button>
+        </div>
+      </div>
+
+      <!-- Filter Controls Bar -->
+      <div class="filter-bar">
+        <div class="source-pills" id="source-filters">
+          <button class="pill active" data-source="all">All Sources</button>
+          <button class="pill" data-source="The Hindu">The Hindu</button>
+          <button class="pill" data-source="Indian Express">Indian Express</button>
+          <button class="pill" data-source="Times of India">Times of India</button>
+        </div>
+
+        <div class="filter-toggles">
+          <label class="toggle-control">
+            <input type="checkbox" id="multi-source-toggle">
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">Multi-source comparison only</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Feed Events List -->
+      <div id="events-container" class="events-list">
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Loading news events...</p>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div id="feed-pagination" class="pagination-bar hidden">
+        <button id="btn-prev-page" class="btn-page" disabled>
+          <i data-lucide="chevron-left"></i> Previous
+        </button>
+        <span id="page-indicator" class="page-info">Page 1 of 1</span>
+        <button id="btn-next-page" class="btn-page" disabled>
+          Next <i data-lucide="chevron-right"></i>
+        </button>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- VIEW 2: Event Deep Dive & Analysis Page -->
+    <!-- ================================================================= -->
+    <section id="view-event" class="app-view">
+      
+      <!-- Breadcrumbs & Back button -->
+      <div class="event-nav-bar">
+        <a href="#feed" class="btn-back">
+          <i data-lucide="arrow-left"></i> Back to News Feed
+        </a>
+        <div class="event-quick-meta" id="event-quick-meta"></div>
+      </div>
+
+      <!-- Event Header -->
+      <div class="event-headline-block">
+        <div class="source-badge-row" id="event-sources-badge-row"></div>
+        <h1 class="event-title" id="event-detail-title">Loading event...</h1>
+        <div class="event-timestamp" id="event-detail-timestamp"></div>
+      </div>
+
+      <!-- Analysis Section 1: Side-by-Side Sources -->
+      <section class="analysis-section">
+        <div class="section-header">
+          <div class="section-num">01</div>
+          <div class="section-title-group">
+            <h2 class="section-heading">Cross-Source Reporting</h2>
+            <p class="section-subheading">Original headlines and articles published by each outlet for this event.</p>
+          </div>
+        </div>
+
+        <div class="sources-grid" id="event-articles-grid">
+          <!-- Article cards inserted here -->
+        </div>
+      </section>
+
+      <!-- Analysis Section 2: Quote Distribution -->
+      <section class="analysis-section">
+        <div class="section-header">
+          <div class="section-num">02</div>
+          <div class="section-title-group">
+            <h2 class="section-heading">Quote Distribution & Voice Amplification</h2>
+            <p class="section-subheading">Who was given a voice? Proportions of quotes attributed to Government, Opposition, Experts, Police, and Citizens.</p>
+          </div>
+        </div>
+
+        <div id="quote-analysis-container" class="quote-analysis-block">
+          <!-- Quote distribution bars & quotes -->
+        </div>
+      </section>
+
+      <!-- Analysis Section 3: Missing Context Matrix -->
+      <section class="analysis-section">
+        <div class="section-header">
+          <div class="section-num">03</div>
+          <div class="section-title-group">
+            <h2 class="section-heading">Missing Context Matrix</h2>
+            <p class="section-subheading">Key facts and named entities reported by certain outlets but omitted by others covering the same story.</p>
+          </div>
+        </div>
+
+        <div id="missing-context-container" class="missing-context-block">
+          <!-- Missing context table -->
+        </div>
+      </section>
+
+      <!-- Analysis Section 4: Related Cluster Stories -->
+      <section class="analysis-section">
+        <div class="section-header">
+          <div class="section-num">04</div>
+          <div class="section-title-group">
+            <h2 class="section-heading">Related Events</h2>
+            <p class="section-subheading">Other clustered stories with overlapping timelines or shared named entities.</p>
+          </div>
+        </div>
+
+        <div class="related-events-grid" id="related-events-grid">
+          <!-- Related event cards -->
+        </div>
+      </section>
+
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- VIEW 3: Debug & Pipeline Page -->
+    <!-- ================================================================= -->
+    <section id="view-debug" class="app-view">
+      
+      <div class="debug-header">
+        <div>
+          <h1 class="page-title">Pipeline Controls & Database Overview</h1>
+          <p class="page-desc">Direct execution of all Makefile operations and inspection of PostgreSQL staging tables.</p>
+        </div>
+        <div class="debug-actions">
+          <button id="btn-refresh-debug" class="btn-secondary" title="Refresh DB Stats">
+            <i data-lucide="refresh-cw"></i> Refresh Stats
+          </button>
+        </div>
+      </div>
+
+      <!-- Database Metric Cards -->
+      <div class="stats-overview-grid" id="stats-overview-cards">
+        <div class="stat-card">
+          <span class="stat-label">Total Articles</span>
+          <span class="stat-value" id="stat-articles">-</span>
+          <span class="stat-foot" id="stat-articles-sub">-</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Clustered Events</span>
+          <span class="stat-value" id="stat-events">-</span>
+          <span class="stat-foot" id="stat-events-sub">-</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Extracted Quotes</span>
+          <span class="stat-value" id="stat-quotes">-</span>
+          <span class="stat-foot" id="stat-quotes-sub">-</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Extracted Entities</span>
+          <span class="stat-value" id="stat-entities">-</span>
+          <span class="stat-foot" id="stat-entities-sub">-</span>
+        </div>
+      </div>
+
+      <!-- Pipeline Command Buttons Grid -->
+      <div class="debug-section">
+        <div class="debug-section-title">
+          <i data-lucide="play-circle"></i>
+          <span>Makefile Pipeline Targets</span>
+        </div>
+        <p class="debug-section-desc">Click any button below to trigger the target in the background with real-time log output.</p>
+
+        <div class="make-targets-grid" id="make-targets-grid">
+          <!-- Populated dynamically with all 13 make buttons -->
+        </div>
+      </div>
+
+      <!-- Live Execution Log Terminal Drawer -->
+      <div class="debug-section terminal-drawer" id="terminal-drawer">
+        <div class="terminal-header">
+          <div class="terminal-title">
+            <span class="terminal-dot"></span>
+            <span id="active-task-label">Pipeline Output Console</span>
+          </div>
+          <div class="terminal-controls">
+            <span id="active-task-status" class="task-status-tag idle">IDLE</span>
+            <button id="btn-clear-terminal" class="btn-term-action" title="Clear console">
+              <i data-lucide="trash-2"></i> Clear
+            </button>
+          </div>
+        </div>
+        <pre id="terminal-log" class="terminal-content">Ready. Select a Make pipeline target above to start execution.</pre>
+      </div>
+
+      <!-- Database Table Inspection -->
+      <div class="debug-section">
+        <div class="debug-section-title">
+          <i data-lucide="database"></i>
+          <span>Database Inspector</span>
+        </div>
+        
+        <!-- Table Tabs -->
+        <div class="table-switcher-tabs" id="table-switcher-tabs">
+          <button class="table-tab active" data-table="articles">articles</button>
+          <button class="table-tab" data-table="events">events</button>
+          <button class="table-tab" data-table="quotes">quotes</button>
+          <button class="table-tab" data-table="entities">entities</button>
+          <button class="table-tab" data-table="article_embeddings">article_embeddings</button>
+          <button class="table-tab" data-table="event_analysis">event_analysis</button>
+        </div>
+
+        <!-- Filter bar for articles table -->
+        <div id="articles-filter-bar" class="debug-table-filter-bar">
+          <input type="text" id="debug-article-search" placeholder="Search by headline or URL..." class="table-search-input">
+          <select id="debug-source-filter" class="table-select">
+            <option value="all">All Sources</option>
+            <option value="The Hindu">The Hindu</option>
+            <option value="Indian Express">Indian Express</option>
+            <option value="Times of India">Times of India</option>
+          </select>
+          <select id="debug-status-filter" class="table-select">
+            <option value="all">All Scrape Statuses</option>
+            <option value="completed">Completed</option>
+            <option value="pending">Pending</option>
+            <option value="failed">Failed</option>
+          </select>
+          <button id="btn-filter-debug-table" class="btn-secondary">Apply Filter</button>
+        </div>
+
+        <!-- Table Container -->
+        <div class="debug-table-wrapper">
+          <div id="debug-table-container">
+            <!-- Dynamic table contents -->
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-col">
+        <span class="footer-brand">Media Lens</span>
+        <p class="footer-note">An explainable evidence explorer comparing Indian English-language newspapers.</p>
+      </div>
+      <div class="footer-col footer-links">
+        <span>Sources: The Hindu &bull; Indian Express &bull; Times of India</span>
+        <span>Built with FastAPI &bull; PostgreSQL &bull; pgvector &bull; spaCy &bull; Gemini Flash</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Application Script -->
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
