@@ -119,11 +119,18 @@ class TaskManager:
                 "variant": "default",
             },
             "group": {
-                "label": "Group Events",
-                "description": "Cluster articles into events via HAC and persist to PostgreSQL",
+                "label": "Group Events (Incremental)",
+                "description": "Assign newly-embedded articles to existing events or create new ones — preserves existing events",
                 "icon": "git-merge",
                 "category": "pipeline",
                 "variant": "default",
+            },
+            "group-full": {
+                "label": "Group Events (Full Recluster)",
+                "description": "Clear all events and recluster entire corpus from scratch — use after threshold tuning",
+                "icon": "refresh-cw",
+                "category": "pipeline",
+                "variant": "danger",
             },
             "analyse": {
                 "label": "Analyse Events",

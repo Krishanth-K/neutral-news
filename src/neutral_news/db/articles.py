@@ -172,18 +172,25 @@ def save_event_cluster(
     conn=None,
     db_url: str = DATABASE_URL,
 ) -> str:
-    """Create an event and map all member articles to it in a single transaction."""
+    """Create an event and map all member articles to it in a single transaction.
+
+    Stores medoid_article_id on the event row for fast incremental lookups.
+    """
     def _execute(connection) -> str:
         with connection.cursor() as cur:
             if title:
                 cur.execute(
-                    "INSERT INTO events (title) VALUES (%s) RETURNING id;",
-                    (title,),
+                    "INSERT INTO events (title, medoid_article_id) VALUES (%s, %s) RETURNING id;",
+                    (title, medoid_id),
                 )
             else:
                 cur.execute(
-                    "INSERT INTO events (title) SELECT headline FROM articles WHERE id = %s RETURNING id;",
-                    (medoid_id,),
+                    """
+                    INSERT INTO events (title, medoid_article_id)
+                    SELECT headline, %s FROM articles WHERE id = %s
+                    RETURNING id;
+                    """,
+                    (medoid_id, medoid_id),
                 )
             row = cur.fetchone()
             if not row:
@@ -234,6 +241,86 @@ def save_event_clusters(
     with psycopg.connect(db_url) as connection:
         with connection.transaction():
             return _execute(connection)
+
+
+def get_unassigned_embedded_articles(
+    conn=None,
+    db_url: str = DATABASE_URL,
+) -> list[str]:
+    """Return article IDs that have embeddings but are not yet assigned to any event.
+
+    These are the candidates for incremental grouping on the next pipeline run.
+    """
+    query = """
+        SELECT ae.article_id
+        FROM article_embeddings ae
+        LEFT JOIN event_articles ea ON ea.article_id = ae.article_id
+        WHERE ea.event_id IS NULL
+        ORDER BY ae.article_id;
+    """
+
+    def _execute(connection) -> list[str]:
+        with connection.cursor() as cur:
+            cur.execute(query)
+            return [str(row[0]) for row in cur.fetchall()]
+
+    if conn:
+        return _execute(conn)
+    with psycopg.connect(db_url) as connection:
+        return _execute(connection)
+
+
+def get_event_medoid_ids(
+    conn=None,
+    db_url: str = DATABASE_URL,
+) -> list[tuple[str, str]]:
+    """Return (event_id, medoid_article_id) pairs for all events that have a stored medoid.
+
+    Events with NULL medoid_article_id (legacy rows before incremental support)
+    are excluded — the caller should run a full regroup to backfill them.
+    """
+    query = """
+        SELECT id, medoid_article_id
+        FROM events
+        WHERE medoid_article_id IS NOT NULL
+        ORDER BY id;
+    """
+
+    def _execute(connection) -> list[tuple[str, str]]:
+        with connection.cursor() as cur:
+            cur.execute(query)
+            return [(str(row[0]), str(row[1])) for row in cur.fetchall()]
+
+    if conn:
+        return _execute(conn)
+    with psycopg.connect(db_url) as connection:
+        return _execute(connection)
+
+
+def update_event_medoid(
+    event_id: str,
+    medoid_article_id: str,
+    conn=None,
+    db_url: str = DATABASE_URL,
+) -> None:
+    """Update the medoid_article_id for an event after new members join."""
+    query = """
+        UPDATE events
+        SET medoid_article_id = %s,
+            updated_at = NOW()
+        WHERE id = %s;
+    """
+
+    def _execute(connection) -> None:
+        with connection.cursor() as cur:
+            cur.execute(query, (medoid_article_id, event_id))
+
+    if conn:
+        _execute(conn)
+    else:
+        with psycopg.connect(db_url) as connection:
+            with connection.transaction():
+                _execute(connection)
 
 
 def get_event_by_article_id(

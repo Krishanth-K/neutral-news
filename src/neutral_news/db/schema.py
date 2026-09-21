@@ -101,9 +101,14 @@ CREATE INDEX IF NOT EXISTS idx_entities_article_id ON entities(article_id);
 CREATE TABLE IF NOT EXISTS events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
+    medoid_article_id UUID REFERENCES articles(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Migration: add medoid_article_id to events if upgrading an existing DB
+ALTER TABLE events ADD COLUMN IF NOT EXISTS medoid_article_id UUID REFERENCES articles(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_events_medoid ON events(medoid_article_id);
 
 -- 6. Event Articles Mapping Table
 CREATE TABLE IF NOT EXISTS event_articles (

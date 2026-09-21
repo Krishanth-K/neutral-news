@@ -68,7 +68,7 @@ def _scrape_pending_articles(conn, batch_size: int = 50) -> None:
 
 
 def run() -> None:
-    """Execute the full pipeline: ingest → scrape → embed."""
+    """Execute the full pipeline: ingest → scrape → embed → extract → group (incremental) → analyse → explain."""
     # 1. Poll RSS feeds from all sources
     feed = poll_all_feeds()
     print(f"[PIPELINE] Fetched {len(feed)} items across all RSS feeds.")
@@ -97,9 +97,9 @@ def run() -> None:
             print("[PIPELINE] Extracting entities for completed articles...")
             extract_named_entities(conn)
 
-            # 7. Group articles into events (HAC clustering) and persist
-            print("[PIPELINE] Grouping articles into events...")
-            group_and_persist_events(conn)
+            # 7. Group articles into events (incremental: only new articles)
+            print("[PIPELINE] Grouping new articles into events (incremental mode)...")
+            group_and_persist_events(conn, incremental=True)
 
             # 8. Run analysis on grouped events (quote distribution & missing context)
             print("[PIPELINE] Analysing events and persisting results...")

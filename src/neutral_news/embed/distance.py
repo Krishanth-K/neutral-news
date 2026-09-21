@@ -229,3 +229,91 @@ def build_distance_matrix(
     np.fill_diagonal(distances, 0.0)
 
     return distances, article_ids
+
+
+def build_distance_matrix_for_articles(
+    article_ids: list[str],
+    conn,
+) -> tuple[np.ndarray, list[str]]:
+    """Compute pairwise distance matrix for a specific subset of articles.
+
+    Identical composite metric to build_distance_matrix() but only fetches
+    embeddings for the given article_ids. Used by incremental grouping to
+    build small matrices without scanning the entire corpus.
+
+    Args:
+        article_ids: List of article UUID strings to include.
+        conn: Active psycopg connection.
+
+    Returns:
+        distances   : np.ndarray of shape (m, m), symmetric, zero diagonal
+        ordered_ids : list[str] — article IDs in row/column order
+                      (may be shorter than input if some have no embeddings)
+    """
+    if not article_ids:
+        return np.empty((0, 0)), []
+
+    # Fetch embeddings + timestamps for the requested articles only
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT a.id, a.published_at, e.embedding
+            FROM articles a
+            JOIN article_embeddings e ON e.article_id = a.id
+            WHERE a.id = ANY(%s)
+            ORDER BY a.id;
+            """,
+            (list(article_ids),),
+        )
+        rows = cur.fetchall()
+
+    if not rows:
+        return np.empty((0, 0)), []
+
+    n = len(rows)
+    ordered_ids = [str(row[0]) for row in rows]
+    publish_times = [row[1] for row in rows]
+
+    # Embedding distance (vectorised)
+    raw_embs = [_parse_embedding(row[2]) for row in rows]
+    embeddings = torch.tensor(np.array(raw_embs), dtype=torch.float32)
+    normed = F.normalize(embeddings, p=2, dim=1)
+    cosine_sim = (normed @ normed.T).numpy()
+    embedding_dist = 1.0 - cosine_sim
+
+    # Time distance (pairwise)
+    time_dist = np.zeros((n, n), dtype=np.float32)
+    for i in range(n):
+        for j in range(i + 1, n):
+            if publish_times[i] and publish_times[j]:
+                d = calculate_time_dist(publish_times[i], publish_times[j])
+            else:
+                d = 0.0
+            time_dist[i, j] = d
+            time_dist[j, i] = d
+
+    # Entity distance — fetch only entities for these articles
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT article_id, text, label FROM entities WHERE article_id = ANY(%s);",
+            (list(article_ids),),
+        )
+        entity_rows = cur.fetchall()
+
+    entities_by_article: dict[str, set] = {}
+    for aid, text, label in entity_rows:
+        entities_by_article.setdefault(str(aid), set()).add((text, label))
+
+    entity_dist = np.zeros((n, n), dtype=np.float32)
+    for i in range(n):
+        entity_a = entities_by_article.get(ordered_ids[i], set())
+        for j in range(i + 1, n):
+            entity_b = entities_by_article.get(ordered_ids[j], set())
+            d = calculate_entity_dist(entity_a, entity_b)
+            entity_dist[i, j] = d
+            entity_dist[j, i] = d
+
+    distances = 0.55 * embedding_dist + 0.25 * time_dist + 0.2 * entity_dist
+    np.fill_diagonal(distances, 0.0)
+
+    return distances.astype(np.float32), ordered_ids

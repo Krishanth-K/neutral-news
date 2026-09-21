@@ -1,4 +1,4 @@
-.PHONY: help db-up db-down init-db run embed clear-embed reset-embed clear-embeddings extract extract-quotes group test-rss view-db viz test analyse test-analysis explain explain-force serve ui
+.PHONY: help db-up db-down init-db run embed clear-embed reset-embed clear-embeddings extract extract-quotes group group-full test-rss view-db viz test analyse test-analysis explain explain-force serve ui
 
 SRC = src
 
@@ -28,7 +28,8 @@ help:
 	@echo "  make clear-embed    - Clear article_embeddings table and reset embedding status"
 	@echo "  make extract [N]    - Run entity extraction (optional limit: all or N articles)"
 	@echo "  make extract-quotes [N] - Run LLM quote extraction (optional limit: all or N articles)"
-	@echo "  make group          - Run HAC event grouping and persistence"
+	@echo "  make group          - Incremental event grouping (new articles only; preserves existing events)"
+	@echo "  make group-full     - Full recluster: clear all events and regroup the entire corpus"
 	@echo "  make analyse [N]    - Run quote distribution and missing context analysis"
 	@echo "  make test           - Run automated unit and integration tests"
 	@echo "  make test-rss       - Test RSS polling module"
@@ -90,8 +91,12 @@ extract-quotes:
 	PYTHONPATH=$(SRC) python3 -c "import psycopg; from neutral_news.config import DATABASE_URL; from neutral_news.extract.quotes import extract_quotes_pipeline; conn = psycopg.connect(DATABASE_URL); extract_quotes_pipeline(conn, limit=$(if $(LIMIT),$(LIMIT),None)); conn.commit(); conn.close()"
 
 group:
-	@echo "Running event grouping and persistence (threshold=$(THRESHOLD))..."
+	@echo "Running incremental event grouping (threshold=$(THRESHOLD))..."
 	PYTHONPATH=$(SRC) python3 -m neutral_news.embed.group_events --threshold $(THRESHOLD)
+
+group-full:
+	@echo "Running FULL recluster — clears all events and regroups entire corpus (threshold=$(THRESHOLD))..."
+	PYTHONPATH=$(SRC) python3 -m neutral_news.embed.group_events --full --threshold $(THRESHOLD)
 
 analyse:
 	@echo "Running quote distribution and missing context analysis..."
