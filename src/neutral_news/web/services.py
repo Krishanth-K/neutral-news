@@ -13,6 +13,7 @@ from neutral_news.db.articles import (
     get_all_events,
     get_articles_for_event,
     get_event_analysis,
+    get_event_explanation,
     retrieve_entities_by_article_id,
     retrieve_quotes_for_event,
 )
@@ -285,12 +286,16 @@ def get_event_detail_with_analysis(event_id: str) -> Optional[dict[str, Any]]:
                     "latest_pub": rr[4].isoformat() if rr[4] else None,
                 })
 
+            # 7. Fetch LLM explanation (if already generated)
+            explanation = get_event_explanation(event_id, conn=conn)
+
             return {
                 "event": event,
                 "articles": articles,
                 "quotes": quotes,
                 "entities": entities,
                 "analysis": analysis,
+                "explanation": explanation,
                 "related_events": related_events,
             }
 

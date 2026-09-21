@@ -325,6 +325,7 @@ function renderEventDetail(data) {
   const quotes = data.quotes || [];
   const entities = data.entities || [];
   const analysis = data.analysis || {};
+  const explanation = data.explanation || null;
   const relatedEvents = data.related_events || [];
 
   // 1. Header Information
@@ -376,7 +377,10 @@ function renderEventDetail(data) {
   // 4. Section 03: Missing Context Matrix
   renderMissingContextMatrix(analysis.missing_context, entities, sourcesList);
 
-  // 5. Section 04: Related Events
+  // 5. Section 04: AI Summary
+  renderAISummary(explanation, sourcesList);
+
+  // 6. Section 05: Related Events
   const relatedGrid = document.getElementById('related-events-grid');
   if (relatedEvents.length === 0) {
     relatedGrid.innerHTML = `<p style="color: var(--text-muted); font-size: 14px;">No related cluster stories found.</p>`;
@@ -397,6 +401,39 @@ function renderEventDetail(data) {
   }
 
   initIcons();
+}
+
+function renderAISummary(explanation, sourcesList) {
+  const container = document.getElementById('ai-summary-container');
+  if (!container) return;
+
+  if (explanation) {
+    container.innerHTML = `
+      <div class="ai-summary-card">
+        <div class="ai-summary-header">
+          <i data-lucide="sparkles" class="ai-summary-icon"></i>
+          <span class="ai-summary-label">Gemini 2.5 Flash · Evidence-only summary</span>
+        </div>
+        <p class="ai-summary-text">${escapeHtml(explanation)}</p>
+        <div class="ai-summary-footer">
+          <i data-lucide="shield-check" style="width:14px;height:14px;"></i>
+          This summary narrates pre-computed evidence. The model does not independently assess or score coverage.
+        </div>
+      </div>
+    `;
+  } else {
+    const sourcesNote = sourcesList.length >= 2
+      ? `This event has ${sourcesList.length} sources — eligible for explanation.`
+      : `Explanations require ≥2 sources. This event has only 1 source.`;
+    container.innerHTML = `
+      <div class="ai-summary-empty">
+        <i data-lucide="message-square" style="width:32px;height:32px;opacity:0.3;margin-bottom:12px;"></i>
+        <p>No explanation generated yet.</p>
+        <p style="font-size:13px;color:var(--text-muted);margin-top:4px;">${escapeHtml(sourcesNote)}</p>
+        <code style="font-size:12px;color:var(--accent-primary);margin-top:8px;display:block;">make explain</code>
+      </div>
+    `;
+  }
 }
 
 function renderQuoteAnalysis(quoteDist, allQuotes) {

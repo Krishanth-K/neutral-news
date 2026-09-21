@@ -132,6 +132,20 @@ class TaskManager:
                 "category": "analysis",
                 "variant": "default",
             },
+            "explain": {
+                "label": "Generate Explanations",
+                "description": "Generate neutral LLM explanations for multi-source events (skips already-explained)",
+                "icon": "message-square",
+                "category": "analysis",
+                "variant": "primary",
+            },
+            "explain-force": {
+                "label": "Regenerate Explanations",
+                "description": "Regenerate LLM explanations for all eligible events, overwriting existing ones",
+                "icon": "refresh-cw",
+                "category": "analysis",
+                "variant": "danger",
+            },
             "test-rss": {
                 "label": "Test RSS Feeds",
                 "description": "Poll RSS feeds from The Hindu, Indian Express, and Times of India",

@@ -1,4 +1,4 @@
-.PHONY: help db-up db-down init-db run embed clear-embed reset-embed clear-embeddings extract extract-quotes group test-rss view-db viz test analyse test-analysis serve ui
+.PHONY: help db-up db-down init-db run embed clear-embed reset-embed clear-embeddings extract extract-quotes group test-rss view-db viz test analyse test-analysis explain explain-force serve ui
 
 SRC = src
 
@@ -37,6 +37,8 @@ help:
 	@echo "    THRESHOLD=0.40      HAC distance threshold (default: 0.40)"
 	@echo "    OUT=file.html       Output filename for viz   (default: embeddings_map.html)"
 	@echo "  make viz-dash [N]   - Interactive live Dash app for threshold tuning"
+	@echo "  make explain        - Generate LLM explanations for all eligible multi-source events"
+	@echo "  make explain-force  - Regenerate LLM explanations even for already-explained events"
 	@echo "  make serve          - Start Media Lens web UI server on http://localhost:8000"
 	@echo "  make ui             - Alias for make serve"
 
@@ -119,6 +121,14 @@ viz-dash:
 		--limit $(or $(LIMIT),500) \
 		--method $(METHOD) \
 		--dash
+
+explain:
+	@echo "Generating LLM explanations for all eligible multi-source events..."
+	PYTHONPATH=$(SRC) python3 -m neutral_news.explain.explain_event
+
+explain-force:
+	@echo "Regenerating LLM explanations (force mode)..."
+	PYTHONPATH=$(SRC) python3 -m neutral_news.explain.explain_event --force
 
 serve:
 	@echo "Starting Media Lens web UI server on http://localhost:8000..."

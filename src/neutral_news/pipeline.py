@@ -13,6 +13,7 @@ from neutral_news.db.articles import (
 )
 from neutral_news.embed.embedder import embed_pending_articles
 from neutral_news.embed.group_events import group_and_persist_events
+from neutral_news.explain.explain_event import explain_all_events
 from neutral_news.extract.quotes import extract_quotes_pipeline
 from neutral_news.extract.entities import extract_named_entities
 from neutral_news.ingest.rss import poll_all_feeds
@@ -114,6 +115,10 @@ def run() -> None:
                 )
             conn.commit()
             print(f"[PIPELINE] Analysed and persisted results for {len(events)} events.")
+
+            # 9. Generate LLM explanations for multi-source events
+            print("[PIPELINE] Generating LLM explanations for multi-source events...")
+            explain_all_events(conn)
 
     except errors.LockNotAvailable as exc:
         print(f"\n[FATAL] Database lock contention: a table or row is locked by another process.")

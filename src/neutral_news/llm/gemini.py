@@ -12,6 +12,7 @@ Used by:
 import json
 
 import google.genai as genai
+from google.genai import types as genai_types
 
 from neutral_news.config import GEMINI_API_KEY
 from neutral_news.extract.constants import ROLE_LABELS
@@ -69,3 +70,34 @@ Article:
         return quotes
     except json.JSONDecodeError:
         return []
+
+
+def generate_explanation(prompt: str) -> str:
+    """Call Gemini Flash to generate a neutral, factual narrative from analysis evidence.
+
+    Used by the Phase 6 explainability layer. The prompt is pre-built by
+    explain/prompt.py and contains only structured, pre-computed facts —
+    the model is instructed to narrate, not analyse.
+
+    Args:
+        prompt: The full structured prompt from explain/prompt.py.
+
+    Returns:
+        The generated explanation text (stripped). Returns an empty string
+        if the API call fails or returns nothing.
+
+    Raises:
+        Exception: Propagates API errors so the caller can handle retries/logging.
+    """
+    client = _get_client()
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=genai_types.GenerateContentConfig(
+            temperature=0.3,
+            max_output_tokens=500,
+        ),
+    )
+
+    return (response.text or "").strip()

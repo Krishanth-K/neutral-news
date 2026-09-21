@@ -121,6 +121,18 @@ CREATE TABLE IF NOT EXISTS event_explanations (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Migration: add unique constraint on event_id so upserts are idempotent
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'uq_event_explanations_event_id'
+    ) THEN
+        ALTER TABLE event_explanations
+            ADD CONSTRAINT uq_event_explanations_event_id UNIQUE (event_id);
+    END IF;
+END $$;
+
 -- 8. Event Analysis Table (Quote distribution and missing context)
 CREATE TABLE IF NOT EXISTS event_analysis (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -132,6 +144,7 @@ CREATE TABLE IF NOT EXISTS event_analysis (
 );
 
 CREATE INDEX IF NOT EXISTS idx_event_analysis_event_id ON event_analysis(event_id);
+CREATE INDEX IF NOT EXISTS idx_event_explanations_event_id ON event_explanations(event_id);
 """
 
 
