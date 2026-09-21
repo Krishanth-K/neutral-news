@@ -82,8 +82,9 @@ h1, h2, h3, h4, .headline-serif {
   font-family: var(--font-serif);
   font-weight: 400;
   color: var(--text-primary);
-  letter-spacing: 0.025em;
-  word-spacing: 0.04em;
+  letter-spacing: 0.01em;
+  transform: scaleX(1.05);
+  transform-origin: left;
 }
 
 a {
@@ -129,6 +130,8 @@ a {
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: 0.02em;
+  transform: scaleX(1.05);
+  transform-origin: left;
 }
 
 .brand-tag {

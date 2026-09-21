@@ -1,9 +1,9 @@
-.PHONY: help db-up db-down init-db run embed extract extract-quotes group test-rss view-db viz test analyse test-analysis serve ui
+.PHONY: help db-up db-down init-db run embed clear-embed reset-embed clear-embeddings extract extract-quotes group test-rss view-db viz test analyse test-analysis serve ui
 
 SRC = src
 
 # Extract optional positional limit argument (e.g. `make extract 10`, `make view-db 20`)
-ifeq ($(filter-out help db-up db-down init-db run test-rss,$(firstword $(MAKECMDGOALS))),$(firstword $(MAKECMDGOALS)))
+ifeq ($(filter-out help db-up db-down init-db run test-rss clear-embed reset-embed clear-embeddings,$(firstword $(MAKECMDGOALS))),$(firstword $(MAKECMDGOALS)))
   RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
   ifneq ($(RUN_ARGS),)
     LIMIT := $(firstword $(RUN_ARGS))
@@ -25,6 +25,7 @@ help:
 	@echo "  make view-db [N]    - View recent articles in the database (default: 10)"
 	@echo "  make run            - Run the full pipeline (ingest → scrape → embed → group)"
 	@echo "  make embed [N]      - Run embedding step (optional limit: all or N articles)"
+	@echo "  make clear-embed    - Clear article_embeddings table and reset embedding status"
 	@echo "  make extract [N]    - Run entity extraction (optional limit: all or N articles)"
 	@echo "  make extract-quotes [N] - Run LLM quote extraction (optional limit: all or N articles)"
 	@echo "  make group          - Run HAC event grouping and persistence"
@@ -69,6 +70,14 @@ run:
 embed:
 	@echo "Running embedding step$(if $(LIMIT), (limit=$(LIMIT)),)..."
 	PYTHONPATH=$(SRC) python3 -c "import psycopg; from neutral_news.config import DATABASE_URL; from neutral_news.embed.embedder import embed_pending_articles; conn = psycopg.connect(DATABASE_URL); embed_pending_articles(conn, limit=$(if $(LIMIT),$(LIMIT),None)); conn.commit(); conn.close()"
+
+clear-embed:
+	@echo "Clearing embedding table and resetting article embedding status..."
+	PYTHONPATH=$(SRC) python3 -m neutral_news.embed.embedder --clear
+
+reset-embed: clear-embed
+clear-embeddings: clear-embed
+
 
 extract:
 	@echo "Running entity extraction step$(if $(LIMIT), (limit=$(LIMIT)),)..."

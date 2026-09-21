@@ -7,6 +7,7 @@ to generate embeddings and stores them in the article_embeddings table via pgvec
 
 from __future__ import annotations
 
+import argparse
 import psycopg
 from pgvector.psycopg import register_vector
 from sentence_transformers import SentenceTransformer
@@ -26,6 +27,20 @@ def _get_model() -> SentenceTransformer:
         print(f"[EMBED] Loading model '{_MODEL_NAME}'...")
         _model = SentenceTransformer(_MODEL_NAME, trust_remote_code=True)
     return _model
+
+
+def _set_status(article_id: str, status: str, conn) -> None:
+    """Update embedding_status for an article."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE articles
+            SET embedding_status = %s,
+                updated_at = NOW()
+            WHERE id = %s;
+            """,
+            (status, article_id),
+        )
 
 
 def get_articles_needing_embeddings(
@@ -70,6 +85,38 @@ def embed_article(article_id: str, text: str, conn) -> None:
             """,
             (article_id, vector),
         )
+    _set_status(article_id, "completed", conn)
+
+
+def clear_embeddings(conn=None, db_url: str = DATABASE_URL) -> int:
+    """Clear all embeddings from article_embeddings table and reset embedding_status on articles.
+
+    Returns:
+        Number of cleared embeddings.
+    """
+    def _execute(connection) -> int:
+        with connection.cursor() as cur:
+            # Ensure column exists if migration hasn't run yet
+            cur.execute("ALTER TABLE articles ADD COLUMN IF NOT EXISTS embedding_status TEXT;")
+            cur.execute("SELECT COUNT(*) FROM article_embeddings;")
+            count = cur.fetchone()[0]
+            cur.execute("DELETE FROM article_embeddings;")
+            cur.execute(
+                """
+                UPDATE articles
+                SET embedding_status = NULL,
+                    updated_at = NOW();
+                """
+            )
+            print(f"[EMBED] Cleared {count} records from article_embeddings and reset embedding status on all articles.")
+            return count
+
+    if conn:
+        return _execute(conn)
+    with psycopg.connect(db_url) as connection:
+        count = _execute(connection)
+        connection.commit()
+        return count
 
 
 def embed_pending_articles(
@@ -96,6 +143,11 @@ def embed_pending_articles(
             except Exception as e:
                 print(f"  ✗ Failed to embed article {article_id}: {e}")
                 conn.rollback()
+                try:
+                    _set_status(article_id, "failed", conn)
+                    conn.commit()
+                except Exception:
+                    pass
             total += 1
 
         conn.commit()
@@ -103,3 +155,22 @@ def embed_pending_articles(
             break
 
     print(f"[EMBED] Done. Embedded {total} articles.")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Generate embeddings or clear embedding table.")
+    parser.add_argument("--clear", action="store_true", help="Clear embedding table and reset embedding status on all articles")
+    parser.add_argument("--limit", type=int, default=None, help="Limit number of articles to embed")
+    args = parser.parse_args()
+
+    with psycopg.connect(DATABASE_URL) as conn:
+        if args.clear:
+            clear_embeddings(conn)
+            conn.commit()
+        else:
+            embed_pending_articles(conn, limit=args.limit)
+
+
+if __name__ == "__main__":
+    main()
+

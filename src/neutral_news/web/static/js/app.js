@@ -752,6 +752,7 @@ function renderDebugArticlesTable(data) {
         <th>Source</th>
         <th>Headline</th>
         <th>Scrape Status</th>
+        <th>Embed Status</th>
         <th>Quotes Status</th>
         <th>Entities Status</th>
         <th>Published At</th>
@@ -770,6 +771,7 @@ function renderDebugArticlesTable(data) {
             </a>
           </td>
           <td><span class="status-badge ${a.scrape_status}">${a.scrape_status}</span></td>
+          <td><span class="status-badge ${a.embedding_status || 'pending'}">${a.embedding_status || 'pending'}</span></td>
           <td><span class="status-badge ${a.quote_status}">${a.quote_status}</span></td>
           <td><span class="status-badge ${a.entity_status}">${a.entity_status}</span></td>
           <td style="font-family: var(--font-mono); font-size: 11px;">${formatDate(a.published_at)}</td>

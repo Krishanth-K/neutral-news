@@ -362,6 +362,16 @@ def get_database_stats() -> dict[str, Any]:
             )
             quote_statuses = {str(r[0]): r[1] for r in cur.fetchall()}
 
+            # Embedding status breakdown
+            cur.execute(
+                """
+                SELECT COALESCE(embedding_status, 'pending'), COUNT(*) 
+                FROM articles 
+                GROUP BY embedding_status;
+                """
+            )
+            embedding_statuses = {str(r[0]): r[1] for r in cur.fetchall()}
+
             # Multi-source events count
             cur.execute(
                 """
@@ -385,6 +395,7 @@ def get_database_stats() -> dict[str, Any]:
                 "scrape_statuses": scrape_statuses,
                 "entity_statuses": entity_statuses,
                 "quote_statuses": quote_statuses,
+                "embedding_statuses": embedding_statuses,
                 "multi_source_events_count": multi_source_events_count,
                 "db_size": db_size,
             }
@@ -434,7 +445,8 @@ def get_debug_articles_table(
                     published_at,
                     created_at,
                     scrape_attempts,
-                    scrape_error
+                    scrape_error,
+                    embedding_status
                 FROM articles
                 {where_clause}
                 ORDER BY created_at DESC
@@ -457,6 +469,7 @@ def get_debug_articles_table(
                     "created_at": r[8].isoformat() if r[8] else None,
                     "scrape_attempts": r[9],
                     "scrape_error": r[10],
+                    "embedding_status": r[11] or "pending",
                 })
 
             return {

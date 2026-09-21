@@ -29,6 +29,7 @@ from neutral_news.db.articles import (
     retrieve_event_articles_id_by_source,
     upsert_event_analysis,
     get_event_analysis,
+    clear_embeddings,
 )
 from neutral_news.analyse.analysis import (
     analyse_quote_distribution,
@@ -211,6 +212,42 @@ class TestArticlesAndAnalysisCRUD(unittest.TestCase):
             # Verify CASCADE deleted event_analysis
             self.assertIsNone(get_event_analysis(event_id, conn=self.conn))
 
+    def test_clear_embeddings_and_status_reset(self):
+        # Insert sample embedding records
+        with self.conn.cursor() as cur:
+            dummy_vec = "[" + ",".join(["0.0"] * 768) + "]"
+            cur.execute(
+                "INSERT INTO article_embeddings (article_id, embedding) VALUES (%s, %s::vector);",
+                (self.art_id_1, dummy_vec),
+            )
+            cur.execute(
+                "UPDATE articles SET embedding_status = 'completed' WHERE id = %s;",
+                (self.art_id_1,),
+            )
+        self.conn.commit()
+
+        # Verify embedding exists and status is set
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM article_embeddings WHERE article_id = %s;", (self.art_id_1,))
+            self.assertEqual(cur.fetchone()[0], 1)
+            cur.execute("SELECT embedding_status FROM articles WHERE id = %s;", (self.art_id_1,))
+            self.assertEqual(cur.fetchone()[0], "completed")
+
+        # Execute clear_embeddings
+        cleared_count = clear_embeddings(conn=self.conn)
+        self.conn.commit()
+        self.assertGreaterEqual(cleared_count, 1)
+
+        # Verify embeddings table is empty and articles status is reset to NULL
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM article_embeddings;")
+            self.assertEqual(cur.fetchone()[0], 0)
+            cur.execute("SELECT embedding_status FROM articles WHERE id IN (%s, %s);", (self.art_id_1, self.art_id_2))
+            statuses = [r[0] for r in cur.fetchall()]
+            for s in statuses:
+                self.assertIsNone(s)
+
+
 
 class TestClusteringLogic(unittest.TestCase):
     """Test HAC clustering and medoid computation logic."""
@@ -227,7 +264,7 @@ class TestClusteringLogic(unittest.TestCase):
         clusters = cluster_articles_hac(
             distances=dist_matrix,
             article_ids=art_ids,
-            distance_threshold=0.40,
+            distance_threshold=0.30,
             linkage_method="complete",
         )
 

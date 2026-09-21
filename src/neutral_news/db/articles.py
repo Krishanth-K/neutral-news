@@ -617,5 +617,33 @@ def get_event_analysis(
         return _execute(connection)
 
 
+def clear_embeddings(conn=None, db_url: str = DATABASE_URL) -> int:
+    """Clear all records from article_embeddings and reset embedding_status on articles.
+
+    Returns the number of deleted embedding records.
+    """
+    def _execute(connection) -> int:
+        with connection.cursor() as cur:
+            cur.execute("ALTER TABLE articles ADD COLUMN IF NOT EXISTS embedding_status TEXT;")
+            cur.execute("SELECT COUNT(*) FROM article_embeddings;")
+            count = cur.fetchone()[0]
+            cur.execute("DELETE FROM article_embeddings;")
+            cur.execute(
+                """
+                UPDATE articles
+                SET embedding_status = NULL,
+                    updated_at = NOW();
+                """
+            )
+            return count
+
+    if conn:
+        return _execute(conn)
+    with psycopg.connect(db_url) as connection:
+        with connection.transaction():
+            return _execute(connection)
+
+
+
 
 

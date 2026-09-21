@@ -97,6 +97,13 @@ class TaskManager:
                 "category": "pipeline",
                 "variant": "default",
             },
+            "clear-embed": {
+                "label": "Clear Embeddings",
+                "description": "Clear article_embeddings table and reset embedding status on all articles",
+                "icon": "rotate-ccw",
+                "category": "pipeline",
+                "variant": "danger",
+            },
             "extract": {
                 "label": "Extract Entities",
                 "description": "Extract spaCy named entities for pending articles",

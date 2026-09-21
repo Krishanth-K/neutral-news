@@ -54,6 +54,8 @@ class TestWebAPI(unittest.TestCase):
         targets = response.json()
         target_names = {t["target"] for t in targets}
         self.assertIn("run", target_names)
+        self.assertIn("embed", target_names)
+        self.assertIn("clear-embed", target_names)
         self.assertIn("group", target_names)
         self.assertIn("analyse", target_names)
         self.assertIn("db-up", target_names)

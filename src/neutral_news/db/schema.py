@@ -46,6 +46,9 @@ CREATE TABLE IF NOT EXISTS articles (
 
     -- quote extraction
     quote_extraction_status TEXT,
+
+    -- embedding extraction
+    embedding_status TEXT,
     
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -55,9 +58,11 @@ CREATE INDEX IF NOT EXISTS idx_articles_scrape_status ON articles(scrape_status)
 CREATE INDEX IF NOT EXISTS idx_articles_source_pub ON articles(source_name, published_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_full_text_hash ON articles(md5(full_text)) WHERE full_text IS NOT NULL;
 
--- Migration: add quote_extraction_status if upgrading an existing DB
+-- Migration: add quote_extraction_status and embedding_status if upgrading an existing DB
 ALTER TABLE articles ADD COLUMN IF NOT EXISTS quote_extraction_status TEXT;
 CREATE INDEX IF NOT EXISTS idx_articles_quote_status ON articles(quote_extraction_status);
+ALTER TABLE articles ADD COLUMN IF NOT EXISTS embedding_status TEXT;
+CREATE INDEX IF NOT EXISTS idx_articles_embedding_status ON articles(embedding_status);
 
 -- 2. Embeddings Table
 CREATE TABLE IF NOT EXISTS article_embeddings (
