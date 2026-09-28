@@ -1,4 +1,4 @@
-.PHONY: help db-up db-down init-db run embed clear-embed reset-embed clear-embeddings extract extract-quotes group group-full test-rss view-db viz test analyse test-analysis explain explain-force serve ui
+.PHONY: help db-up db-down tunnel-up tunnel-down up down init-db run embed clear-embed reset-embed clear-embeddings extract extract-quotes group group-full test-rss view-db viz test analyse test-analysis explain explain-force serve ui
 
 SRC = src
 
@@ -19,8 +19,12 @@ THRESHOLD ?= 0.40
 # Default target
 help:
 	@echo "Available commands:"
-	@echo "  make db-up          - Start Postgres (pgvector) container using Docker"
-	@echo "  make db-down        - Stop and remove Postgres container"
+	@echo "  make db-up          - Start Postgres (pgvector) container"
+	@echo "  make db-down        - Stop Postgres container"
+	@echo "  make tunnel-up      - Start Cloudflare tunnel container"
+	@echo "  make tunnel-down    - Stop Cloudflare tunnel container"
+	@echo "  make up             - Start all services (DB + tunnel)"
+	@echo "  make down           - Stop all services"
 	@echo "  make init-db        - Initialize Postgres database extensions & schema"
 	@echo "  make view-db [N]    - View recent articles in the database (default: 10)"
 	@echo "  make run            - Run the full pipeline (ingest → scrape → embed → group)"
@@ -45,18 +49,27 @@ help:
 
 db-up:
 	@echo "Starting PostgreSQL with pgvector on port 5433..."
-	@docker run -d \
-		--name neutral_news_db \
-		-e POSTGRES_DB=neutral_news \
-		-e POSTGRES_USER=postgres \
-		-e POSTGRES_PASSWORD=postgres \
-		-p 5433:5432 \
-		pgvector/pgvector:pg16 || docker start neutral_news_db
+	@docker compose up -d db
 
 db-down:
 	@echo "Stopping PostgreSQL container..."
-	@docker stop neutral_news_db || true
-	@docker rm neutral_news_db || true
+	@docker compose down db
+
+tunnel-up:
+	@echo "Starting Cloudflare tunnel..."
+	@docker compose up -d cloudflared
+
+tunnel-down:
+	@echo "Stopping Cloudflare tunnel..."
+	@docker compose down cloudflared
+
+up:
+	@echo "Starting all services (DB + tunnel)..."
+	@docker compose up -d
+
+down:
+	@echo "Stopping all services..."
+	@docker compose down
 
 init-db:
 	@echo "Initializing database..."
