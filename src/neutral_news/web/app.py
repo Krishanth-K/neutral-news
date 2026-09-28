@@ -202,3 +202,9 @@ async def get_task_status(task_id: str):
     task_dict = task.to_dict()
     task_dict["logs"] = task.get_full_logs()
     return task_dict
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("neutral_news.web.app:app", host="0.0.0.0", port=8000, reload=True)
