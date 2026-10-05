@@ -9,6 +9,23 @@ def calculate_time_dist(publish_time_a: datetime, publish_time_b: datetime) -> f
     """Returns the absolute difference in hours between two publication timestamps."""
     return abs((publish_time_a - publish_time_b).total_seconds() / 3600)
 
+
+# Maximum time window (hours) for normalisation.  Articles this far apart
+# or further receive the maximum time distance of 1.0.
+TIME_WINDOW_HRS: float = 48.0
+
+
+def normalise_time_dist(hours: float, window: float = TIME_WINDOW_HRS) -> float:
+    """Map a raw hour delta to [0, 1].
+
+    0.0  → published at the same instant
+    1.0  → published ≥ *window* hours apart
+
+    Uses a simple linear clamp so the gradient is constant within the
+    window — no need for a sigmoid when we're adding hard gates later.
+    """
+    return min(hours / window, 1.0)
+
 def _get_entities_with_article_id(article_id: str, conn):
     with conn.cursor() as cur:
         query = """
@@ -98,8 +115,10 @@ def compute_distance_between_two_articles(
 
     # --- 2. Time distance ---
     if row_a[3] and row_b[3] and article_id_a != article_id_b:
-        time_dist = calculate_time_dist(row_a[3], row_b[3])
+        time_dist_hours = calculate_time_dist(row_a[3], row_b[3])
+        time_dist = normalise_time_dist(time_dist_hours)
     else:
+        time_dist_hours = 0.0
         time_dist = 0.0
 
     # --- 3. Entity distance ---
@@ -140,7 +159,8 @@ def compute_distance_between_two_articles(
         },
         "cosine_similarity": cos_sim,
         "embedding_distance": embedding_dist,
-        "time_distance_hours": time_dist,
+        "time_distance_hours": time_dist_hours,
+        "time_distance_normalised": time_dist,
         "entities_a": entities_a,
         "entities_b": entities_b,
         "shared_entities": entities_a & entities_b,
@@ -164,7 +184,7 @@ def build_distance_matrix(
 
     Distance is a weighted sum:
         0.55 — cosine distance between embeddings (semantic similarity)
-        0.25 — time distance (absolute difference in hours)
+        0.25 — normalised time distance (0 = same instant, 1 = ≥ 48 h apart)
         0.20 — entity distance (shared named entities)
 
     Returns:
@@ -196,12 +216,13 @@ def build_distance_matrix(
     cosine_sim = (normed @ normed.T).numpy()  # (n, n), values in [-1, 1]
     embedding_dist = 1.0 - cosine_sim           # cosine distance in [0, 2]
 
-    # --- Time distance (pairwise) ---
+    # --- Time distance (pairwise, normalised to [0, 1]) ---
     time_dist = np.zeros((n, n), dtype=np.float32)
     for i in range(n):
         for j in range(i + 1, n):
             if publish_times[i] and publish_times[j]:
-                d = calculate_time_dist(publish_times[i], publish_times[j])
+                raw_hrs = calculate_time_dist(publish_times[i], publish_times[j])
+                d = normalise_time_dist(raw_hrs)
             else:
                 d = 0.0
             time_dist[i, j] = d
@@ -225,7 +246,7 @@ def build_distance_matrix(
             entity_dist[i, j] = d
             entity_dist[j, i] = d
 
-    distances = 0.55 * embedding_dist + 0.25 * time_dist + 0.2 * entity_dist
+    distances = 0.55 * embedding_dist + 0.3 * time_dist + 0.15 * entity_dist
     np.fill_diagonal(distances, 0.0)
 
     return distances, article_ids
@@ -281,12 +302,13 @@ def build_distance_matrix_for_articles(
     cosine_sim = (normed @ normed.T).numpy()
     embedding_dist = 1.0 - cosine_sim
 
-    # Time distance (pairwise)
+    # Time distance (pairwise, normalised to [0, 1])
     time_dist = np.zeros((n, n), dtype=np.float32)
     for i in range(n):
         for j in range(i + 1, n):
             if publish_times[i] and publish_times[j]:
-                d = calculate_time_dist(publish_times[i], publish_times[j])
+                raw_hrs = calculate_time_dist(publish_times[i], publish_times[j])
+                d = normalise_time_dist(raw_hrs)
             else:
                 d = 0.0
             time_dist[i, j] = d
