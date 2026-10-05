@@ -49,11 +49,11 @@ help:
 
 db-up:
 	@echo "Starting PostgreSQL with pgvector on port 5433..."
-	@docker compose up -d db
+	@docker start neutral_news_db 2>/dev/null || docker compose up -d db
 
 db-down:
 	@echo "Stopping PostgreSQL container..."
-	@docker compose down db
+	@docker stop neutral_news_db 2>/dev/null || docker compose stop db
 
 tunnel-up:
 	@echo "Starting Cloudflare tunnel..."
