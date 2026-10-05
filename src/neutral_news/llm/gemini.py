@@ -14,18 +14,38 @@ import json
 import google.genai as genai
 from google.genai import types as genai_types
 
-from neutral_news.config import GEMINI_API_KEY
+from neutral_news.config import GEMINI_API_KEY_POOL
 from neutral_news.extract.constants import ROLE_LABELS
 
-_client = None
+from google.genai import errors
+
+class KeyPool:
+    def __init__(self, keys: list[str]):
+        self._keys = keys
+        self._index = 0
+        self._consecutive_failures = 0
+        self._client = self._make_client()
+
+    def _make_client(self) -> genai.Client:
+        return genai.Client(api_key=self._keys[self._index])
+
+    def get_client(self) -> genai.Client:
+        return self._client
+
+    def rotate(self):
+        self._consecutive_failures += 1
+
+        if self._consecutive_failures >= len(self._keys):
+            raise RuntimeError("All Gemini API keys are exhausted.")
+
+        self._index = (self._index + 1) % len(self._keys)
+        self._client = self._make_client()  # always creates fresh
+
+    def reset_failures(self):
+        self._consecutive_failures = 0
 
 
-def _get_client() -> genai.Client:
-    """Lazy-init the Gemini client (created once, reused across calls)."""
-    global _client
-    if _client is None:
-        _client = genai.Client(api_key=GEMINI_API_KEY)
-    return _client
+_pool = KeyPool(GEMINI_API_KEY_POOL)  # one module-level instance, not bare globals
 
 
 def extract_quotes(article_text: str) -> list[dict]:
@@ -48,29 +68,39 @@ Example: [{{"quote_text": "We will act soon", "speaker": "Amit Shah", "role": "g
 Article:
 {article_text}"""
 
-    client = _get_client()
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-    )
-
-    raw = response.text.strip()
-
-    # Strip markdown code fences if the model adds them anyway
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-        raw = raw.strip()
-
     try:
-        quotes = json.loads(raw)
-        if not isinstance(quotes, list):
-            return []
-        return quotes
-    except json.JSONDecodeError:
-        return []
+        client = _pool.get_client()
+        response = client.models.generate_content(
+            model="gemini-3.8-flash",
+            contents=prompt,
+        )
+        raw = response.text.strip()
+        _pool.reset_failures()
 
+        # Strip markdown code fences if the model adds them anyway
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+
+        try:
+            quotes = json.loads(raw)
+            if not isinstance(quotes, list):
+                return []
+            return quotes
+        except json.JSONDecodeError:
+            return []
+
+    except errors.APIError as e:
+        print(f"API returned error code {e.code}")
+
+        if e.code == 429:
+            print("rotating api key")
+
+            _pool.rotate()
+            return extract_quotes(article_text)  # retry with next key
+        raise  # re-raise non-429 errors (403, 500, etc.)
 
 def generate_explanation(prompt: str) -> str:
     """Call Gemini Flash to generate a neutral, factual narrative from analysis evidence.
@@ -89,15 +119,28 @@ def generate_explanation(prompt: str) -> str:
     Raises:
         Exception: Propagates API errors so the caller can handle retries/logging.
     """
-    client = _get_client()
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-        config=genai_types.GenerateContentConfig(
-            temperature=0.3,
-            max_output_tokens=500,
-        ),
-    )
+    try:
+        client = _pool.get_client()
 
-    return (response.text or "").strip()
+        response = client.models.generate_content(
+            model="gemini-3.8-flash",
+            contents=prompt,
+            config=genai_types.GenerateContentConfig(
+                temperature=0.3,
+                max_output_tokens=500,
+            ),
+        )
+
+        _pool.reset_failures()
+        return (response.text or "").strip()
+
+    except errors.APIError as e:
+        print(f"API returned error code {e.code}")
+
+        if e.code == 429:
+            print("rotating api key")
+
+            _pool.rotate()
+            return generate_explanation(prompt)  # retry with next key
+        raise  # re-raise non-429 errors (403, 500, etc.)
