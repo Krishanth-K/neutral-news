@@ -37,7 +37,7 @@ def print_test_case(test_num: int, title: str, res: dict):
     print("-" * 80)
     print(f"  • Cosine Similarity:      {res['cosine_similarity']:.4f}")
     print(f"  • Embedding Distance:     {res['embedding_distance']:.4f}  (weight: {res['weights']['embedding']})")
-    print(f"  • Time Difference:        {res['time_distance_hours']:.2f} hours  (weight: {res['weights']['time']})")
+    print(f"  • Time Difference:        {res['time_distance_hours']:.2f} hours → normalised: {res['time_distance_normalised']:.4f}  (weight: {res['weights']['time']})")
     
     shared_named = [t[0] for t in sorted(res["shared_entities"])]
     print(f"  • Named Entity Distance:  {res['entity_distance']:.4f}  (weight: {res['weights']['entity']})")
@@ -45,9 +45,9 @@ def print_test_case(test_num: int, title: str, res: dict):
     print(f"    - Shared Entities ({len(shared_named)}): {', '.join(shared_named[:8]) if shared_named else 'None'}")
     print()
     weighted_emb = res['weights']['embedding'] * res['embedding_distance']
-    weighted_time = res['weights']['time'] * res['time_distance_hours']
+    weighted_time = res['weights']['time'] * res['time_distance_normalised']
     weighted_ent = res['weights']['entity'] * res['entity_distance']
-    print(f"  • Formula: 0.55 * ({res['embedding_distance']:.4f}) + 0.25 * ({res['time_distance_hours']:.2f}) + 0.20 * ({res['entity_distance']:.4f})")
+    print(f"  • Formula: 0.55 * ({res['embedding_distance']:.4f}) + 0.25 * ({res['time_distance_normalised']:.4f}) + 0.20 * ({res['entity_distance']:.4f})")
     print(f"           = {weighted_emb:.4f} + {weighted_time:.4f} + {weighted_ent:.4f}")
     print(f"  • Total Pairwise Distance: {res['total_distance']:.4f}")
     print()
